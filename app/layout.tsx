@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script"; // <--- 1. Import added here
 import "./globals.css";
-import Navbar from "./components/Navbar"; // Ensure this path matches where you saved the file above
+import Navbar from "./components/Navbar"; 
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,6 +20,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} bg-gray-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]`}>
         
+        {/* 2. Adsterra Ad Script */}
+        <Script 
+          src="//pl28175488.effectivegatecpm.com/66/6a/26/666a2635f82928121a8ccd607d68e862.js"
+          strategy="afterInteractive"
+        />
+
         {/* Modern Glassmorphism Navbar */}
         <Navbar />
 
