@@ -88,6 +88,13 @@ export default function RootLayout({
                 >
                   Deal Planner
                 </Link>
+
+                <Link 
+                  href="/qr-generator" 
+                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  QR Generator
+                </Link>
               </div>
 
             </div>
