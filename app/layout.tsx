@@ -64,6 +64,7 @@ export default function RootLayout({
                       <Link href="/keywords" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Keyword Optimizer</Link>
                       <Link href="/html-formatter" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">HTML Formatter</Link>
                       <Link href="/title-optimizer" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Title Optimizer</Link>
+                      <Link href="/bullet-builder" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Bullet Point Builder</Link>
                     </div>
                   </div>
                 </div>
