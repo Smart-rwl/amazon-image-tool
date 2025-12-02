@@ -46,6 +46,13 @@ export default function RootLayout({
                 >
                   Keyword Optimizer
                 </Link>
+
+                <Link 
+                  href="/calculator" 
+                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Profit Calculator
+                </Link>
               </div>
 
             </div>
