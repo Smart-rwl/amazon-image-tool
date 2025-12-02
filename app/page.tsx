@@ -63,17 +63,10 @@ export default function BulkImageGenerator() {
       setStatus(`Processing ${asinList.length} files...`);
 
       // 3. Add files to Zip
-      // We read the uploaded file once and duplicate it inside the zip structure
       asinList.forEach((asin) => {
-        // Clean the ASIN (remove spaces)
         const cleanAsin = asin.replace(/\s/g, '');
-        
-        // Get extension from uploaded file (usually .jpg)
         const fileExtension = masterFile.name.split('.').pop();
-        
-        // Construct filename: ASIN.VARIANT.jpg
         const filename = `${cleanAsin}.${suffix}.${fileExtension}`;
-        
         zip.file(filename, masterFile);
       });
 
@@ -126,16 +119,11 @@ export default function BulkImageGenerator() {
                     <>
                       <svg className="w-8 h-8 mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                       <p className="text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                      <p className="text-xs text-gray-500">JPG or PNG (Amazon prefers JPG)</p>
+                      <p className="text-xs text-gray-500">JPG or PNG</p>
                     </>
                   )}
                 </div>
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  accept="image/*" 
-                  onChange={handleFileChange} 
-                />
+                <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
               </label>
             </div>
           </div>
@@ -176,9 +164,7 @@ export default function BulkImageGenerator() {
             onClick={handleGenerate}
             disabled={isLoading}
             className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${
-              isLoading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
+              isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
             {isLoading ? 'Processing...' : 'Download ZIP File'}
@@ -194,6 +180,62 @@ export default function BulkImageGenerator() {
           )}
         </div>
       </div>
+
+      {/* --- CREATOR FOOTER START --- */}
+      <div className="mt-8 flex flex-col items-center justify-center space-y-2">
+        <p className="text-gray-500 font-medium">Created by SmartRwl</p>
+        <div className="flex space-x-4">
+          {/* Instagram Icon */}
+          <a
+            href="http://www.instagram.com/smartrwl"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-pink-600 transition-colors"
+            title="Instagram"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </a>
+
+          {/* GitHub Icon */}
+          <a
+            href="https://github.com/Smart-rwl/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-black transition-colors"
+            title="GitHub"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+            </svg>
+          </a>
+        </div>
+      </div>
+      {/* --- CREATOR FOOTER END --- */}
+
     </div>
   );
 }
