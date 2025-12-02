@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -24,3 +25,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- ADD CUSTOM FONT HERE --- */
+@font-face {
+  font-family: 'Rotura';
+  src: url('/fonts/Rotura.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Create a utility class to use it easily */
+.font-rotura {
+  font-family: 'Rotura', serif;
+}
+
+/* ... keep the rest of your css below ... */
