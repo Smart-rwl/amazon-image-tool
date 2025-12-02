@@ -80,7 +80,7 @@ export default function SkuGenerator() {
             <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-2 bg-blue-50/50">
               <p><strong>1. Enter Details:</strong> Fill in the Brand, Category (e.g., Shirt), Color, and Size.</p>
               <p><strong>2. Auto-Formatting:</strong> The tool automatically converts text to UPPERCASE and removes spaces.</p>
-              <p><strong>3. Brand Shortening:</strong> It intelligently takes only the first 4 letters of your Brand to save space (e.g., "NIKE" -> "NIKE").</p>
+              <p><strong>3. Brand Shortening:</strong> It intelligently takes only the first 4 letters of your Brand to save space (e.g., &quot;NIKE&quot; &rarr; &quot;NIKE&quot;).</p>
               <p><strong>4. Generate:</strong> Click the button to create your unique code.</p>
               <p><strong>Why use this?</strong> Consistent SKUs (like <code>NIKE-SHIRT-RED-L</code>) help warehouse staff find products faster than random names.</p>
             </div>
