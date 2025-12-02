@@ -60,7 +60,7 @@ export default function RootLayout({
         </nav>
         {/* --- NAVIGATION BAR END --- */}
 
-        {/* This is where your page content (Image tool or Keyword tool) is inserted */}
+        {/* This is where your page content (Image tool or Keyword tool) is inserted  */}
         <main>
           {children}
         </main>
