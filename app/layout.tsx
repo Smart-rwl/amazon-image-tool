@@ -83,6 +83,7 @@ export default function RootLayout({
                       <Link href="/inventory" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Inventory Planner</Link>
                       <Link href="/deal-planner" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Discount Planner</Link>
                       <Link href="/qr-generator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">QR Generator</Link>
+                      <Link href="/cbm-calculator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">CBM & Shipping Planner</Link>
                     </div>
                   </div>
                 </div>
