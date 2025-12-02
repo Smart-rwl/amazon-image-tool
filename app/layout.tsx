@@ -71,6 +71,7 @@ export default function RootLayout({
                       <Link href="/keyword-density" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Competitor Analyzer</Link>
                       <Link href="/sku-generator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Smart SKU Generator</Link>
                       <Link href="/keyword-mixer" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Keyword Permutation Mixer</Link>
+                      <Link href="/ab-test" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">A/B Significance Calc</Link>
                     </div>
                   </div>
                 </div>
