@@ -47,6 +47,7 @@ export default function RootLayout({
                       <Link href="/ppc-calculator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">PPC/Ads Calc</Link>
                       <Link href="/price-finder" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Target Price Finder</Link>
                       <Link href="/volumetric" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Volumetric Weight</Link>
+                      <Link href="/odr-calculator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Account Health</Link>
                     </div>
                   </div>
                 </div>
