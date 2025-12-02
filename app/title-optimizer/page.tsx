@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 
 export default function TitleOptimizer() {
   const [title, setTitle] = useState('');
+  const [showGuide, setShowGuide] = useState(false); // State for the How-To toggle
   
   // Amazon limit recommendations
   const MAX_DESKTOP = 200;
@@ -47,6 +48,32 @@ export default function TitleOptimizer() {
             Format your title and check mobile visibility limits.
           </p>
         </div>
+
+        {/* --- NEW: HOW TO USE SECTION --- */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
+          <button 
+            onClick={() => setShowGuide(!showGuide)}
+            className="w-full flex justify-between items-center p-4 text-blue-800 font-bold text-sm hover:bg-blue-100 transition-colors"
+          >
+            <span>📖 How to Use & Amazon Guidelines</span>
+            <svg className={`w-5 h-5 transition-transform ${showGuide ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          
+          {showGuide && (
+            <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-3 bg-blue-50/50">
+              <p><strong>1. Enter your Draft:</strong> Paste your raw title in the box below.</p>
+              <p><strong>2. Check Mobile Limit:</strong> Ensure your main keywords (Brand, Product Name, Size) are in the first <span className="bg-yellow-200 px-1 rounded">80 characters</span>. This is all mobile users see.</p>
+              <p><strong>3. Format Correctly:</strong> Click <strong>"Convert to Title Case"</strong>. Amazon requires the first letter of every word to be capitalized.</p>
+              <ul className="list-disc list-inside pl-2 space-y-1 text-xs text-blue-700 mt-2">
+                <li>❌ Do not use ALL CAPS.</li>
+                <li>❌ Do not use promotional phrases like "Best Seller" or "Free Shipping".</li>
+                <li>❌ Do not use special characters like ~ ! ? $</li>
+                <li>✅ Use numerals (e.g., "3" instead of "Three").</li>
+              </ul>
+            </div>
+          )}
+        </div>
+        {/* --- END HOW TO USE SECTION --- */}
 
         {/* INPUT AREA */}
         <div className="space-y-2">
