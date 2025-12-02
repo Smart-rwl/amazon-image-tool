@@ -50,6 +50,7 @@ export default function RootLayout({
                       <Link href="/odr-calculator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Account Health</Link>
                       <Link href="/volume-calculator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Price Drop Strategy</Link>
                       <Link href="/influencer-roi" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Influencer ROI Calc</Link>
+                      <Link href="/price-matcher" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Competitor Price Match</Link>
                     </div>
                   </div>
                 </div>
