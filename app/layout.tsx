@@ -65,7 +65,14 @@ export default function RootLayout({
                   href="/volumetric" 
                   className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Volumetricgit add .
+                  Volumetric
+                </Link>
+
+                <Link 
+                  href="/inventory-planner" 
+                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  inventory Planner
                 </Link>
               </div>
 
