@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Link from "next/link"; // This is required for navigation
+import Link from "next/link";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,85 +24,71 @@ export default function RootLayout({
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               
-              {/* Left Side: Logo / Brand */}
+              {/* Left Side: Logo */}
               <div className="flex items-center">
                 <Link href="/" className="flex-shrink-0 flex items-center">
-                  <span className="font-bold text-xl text-blue-600">SmartRwl Tools</span>
+                  <span className="font-bold text-xl text-blue-600 tracking-tight">SmartRwl Tools</span>
                 </Link>
               </div>
 
-              {/* Right Side: Menu Links */}
-              <div className="flex items-center space-x-4">
-                <Link 
-                  href="/" 
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Image Tool
-                </Link>
+              {/* Right Side: Dropdown Menus */}
+              <div className="flex items-center space-x-1 sm:space-x-4">
                 
-                <Link 
-                  href="/keywords" 
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Keyword Optimizer
-                </Link>
+                {/* DROPDOWN 1: CALCULATORS */}
+                <div className="relative group h-full flex items-center">
+                  <button className="text-gray-600 group-hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium inline-flex items-center transition-colors">
+                    <span>Calculators</span>
+                    <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </button>
+                  {/* Menu Items */}
+                  <div className="absolute top-12 left-0 w-48 bg-white border border-gray-100 shadow-xl rounded-lg hidden group-hover:block animate-fade-in-down">
+                    <div className="py-1">
+                      <Link href="/calculator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Profit & RTO Calc</Link>
+                      <Link href="/ppc-calculator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">PPC/Ads Calc</Link>
+                      <Link href="/price-finder" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Target Price Finder</Link>
+                      <Link href="/volumetric" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Volumetric Weight</Link>
+                    </div>
+                  </div>
+                </div>
 
-                <Link 
-                  href="/calculator" 
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Profit Calculator
-                </Link>
+                {/* DROPDOWN 2: LISTING TOOLS */}
+                <div className="relative group h-full flex items-center">
+                  <button className="text-gray-600 group-hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium inline-flex items-center transition-colors">
+                    <span>Listing Tools</span>
+                    <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </button>
+                  {/* Menu Items */}
+                  <div className="absolute top-12 left-0 w-48 bg-white border border-gray-100 shadow-xl rounded-lg hidden group-hover:block animate-fade-in-down">
+                    <div className="py-1">
+                      <Link href="/" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Image Bulk Remover</Link>
+                      <Link href="/keywords" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Keyword Optimizer</Link>
+                      <Link href="/html-formatter" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">HTML Formatter</Link>
+                    </div>
+                  </div>
+                </div>
 
-                <Link 
-                  href="/html-formatter" 
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  HTML Formatter
-                </Link>
+                {/* DROPDOWN 3: OPERATIONS */}
+                <div className="relative group h-full flex items-center">
+                  <button className="text-gray-600 group-hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium inline-flex items-center transition-colors">
+                    <span>Operations</span>
+                    <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </button>
+                  {/* Menu Items */}
+                  <div className="absolute top-12 right-0 w-48 bg-white border border-gray-100 shadow-xl rounded-lg hidden group-hover:block animate-fade-in-down">
+                    <div className="py-1">
+                      <Link href="/inventory" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Inventory Planner</Link>
+                      <Link href="/deal-planner" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Discount Planner</Link>
+                      <Link href="/qr-generator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">QR Generator</Link>
+                    </div>
+                  </div>
+                </div>
 
-                <Link 
-                  href="/volumetric" 
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Volumetric
-                </Link>
-
-                <Link 
-                  href="/inventory-planner" 
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  inventory Planner
-                </Link>
-
-                <Link 
-                  href="/ppc-calculator" 
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  PPC Calculator
-                </Link>
-
-                <Link 
-                  href="/deal-planner" 
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Deal Planner
-                </Link>
-
-                <Link 
-                  href="/qr-generator" 
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  QR Generator
-                </Link>
               </div>
-
             </div>
           </div>
         </nav>
         {/* --- NAVIGATION BAR END --- */}
 
-        {/* This is where your page content (Image tool or Keyword tool) is inserted  */}
         <main>
           {children}
         </main>
