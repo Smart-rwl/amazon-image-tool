@@ -69,7 +69,8 @@ export default function RootLayout({
                       <Link href="/bullet-builder" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Bullet Point Builder</Link>
                       <Link href="/lqs-checker" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Listing Auditor (LQS)</Link>
                       <Link href="/keyword-density" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Competitor Analyzer</Link>
-                      <Link href="/sku-generator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Smart SKU Generator </Link>
+                      <Link href="/sku-generator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Smart SKU Generator</Link>
+                      <Link href="/keyword-mixer" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">Keyword Permutation Mixer</Link>
                     </div>
                   </div>
                 </div>
