@@ -79,6 +79,7 @@ export default function Navbar() {
                 <MenuLink href="/deal-planner" title="Discount Planner" />
                 <MenuLink href="/qr-generator" title="QR Generator" />
                 <MenuLink href="/cbm-calculator" title="CBM & Shipping" />
+                <MenuLink href="/barcode-generator" title="Bar Code Generator" />
               </div>
             </Dropdown>
 
