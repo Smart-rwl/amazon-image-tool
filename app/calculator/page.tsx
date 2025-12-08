@@ -9,7 +9,11 @@ import {
   DollarSign, 
   Box, 
   RefreshCw, 
-  Target 
+  Target,
+  BookOpen,
+  Lightbulb,
+  HelpCircle,
+  MousePointerClick
 } from 'lucide-react';
 
 export default function AdvancedProfitCalculator() {
@@ -68,7 +72,6 @@ export default function AdvancedProfitCalculator() {
 
     // C. Return (RTO) Economics
     // Loss = Shipping (Fwd+Rev) + Packaging + Ads + Damaged Product Cost
-    // Note: We assume Platform Fees are refunded by Amazon/Flipkart on return (mostly)
     const damagedValue = productCost * (damageRate / 100);
     const lossOnReturn = shippingCost + returnShipping + packaging + adsCost + damagedValue;
 
@@ -76,7 +79,7 @@ export default function AdvancedProfitCalculator() {
     const successCount = 100 - returnRate;
     const returnCount = returnRate;
     
-    // (90 orders * Profit) - (10 orders * Loss)
+    // (85 orders * Profit) - (15 orders * Loss)
     const totalBatchProfit = (successCount * profitOnSuccess) - (returnCount * lossOnReturn);
     const weightedProfitPerUnit = totalBatchProfit / 100;
 
@@ -84,9 +87,7 @@ export default function AdvancedProfitCalculator() {
     const margin = finalCustomerPrice > 0 ? (profitOnSuccess / finalCustomerPrice) * 100 : 0;
     const roi = productCost > 0 ? (weightedProfitPerUnit / productCost) * 100 : 0;
     
-    // Break Even ROAS (Return On Ad Spend)
-    // How much revenue you need per 1 rupee of ad spend to not lose money
-    const grossMargin = basePrice - (productCost + platformFees + shippingCost + packaging);
+    // Break Even ROAS
     const breakEvenROAS = adsCost > 0 ? finalCustomerPrice / adsCost : 0; 
 
     setMetrics({
@@ -127,7 +128,7 @@ export default function AdvancedProfitCalculator() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
           
           {/* --- LEFT: INPUTS (8 Cols) --- */}
           <div className="lg:col-span-8 space-y-6">
@@ -140,7 +141,7 @@ export default function AdvancedProfitCalculator() {
                   Revenue & Costs
                 </h2>
                 <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-                  <button onClick={() => setGstMode('inclusive')} className={`px-3 py-1 text-xs font-medium rounded ${gstMode === 'inclusive' ? 'bg-blue-100 text-blue-700' : 'text-slate-500'}`}>GST Inclusive</button>
+                  <button onClick={() => setGstMode('inclusive')} className={`px-3 py-1 text-xs font-medium rounded ${gstMode === 'inclusive' ? 'bg-blue-100 text-blue-700' : 'text-slate-500'}`}>Inclusive</button>
                   <button onClick={() => setGstMode('exclusive')} className={`px-3 py-1 text-xs font-medium rounded ${gstMode === 'exclusive' ? 'bg-blue-100 text-blue-700' : 'text-slate-500'}`}>Exclusive</button>
                 </div>
               </div>
@@ -205,7 +206,7 @@ export default function AdvancedProfitCalculator() {
                    <div>
                         <label className="text-xs font-medium text-slate-500">Cost Per Acquisition (CPA)</label>
                         <input type="number" value={adsCost} onChange={e => setAdsCost(Number(e.target.value))} className="mt-1 block w-full border-slate-300 rounded-md border px-3 py-2 text-sm" />
-                        <p className="text-[10px] text-slate-400 mt-1">Average ad spend to get 1 sale</p>
+                        <p className="text-[10px] text-slate-400 mt-1">Ad spend required to get 1 sale</p>
                    </div>
                 </div>
             </div>
@@ -298,15 +299,88 @@ export default function AdvancedProfitCalculator() {
              {/* Info Panel */}
              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                 <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                   <Info className="w-4 h-4" /> Did you know?
+                   <Info className="w-4 h-4" /> ROI Reality Check
                 </h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
                    A 15% return rate doesn't just mean 15% less sales. It means you pay shipping <b>twice</b> (Forward + Reverse) on those items, plus packaging loss. This calculator deducts those hidden losses from your successful sales.
                 </p>
              </div>
-
           </div>
         </div>
+
+        {/* --- USER GUIDE SECTION --- */}
+        <div className="border-t border-slate-200 pt-10">
+           <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-blue-600" />
+              User Guide & Strategy
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* WHEN TO USE */}
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                 <div className="bg-blue-50 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <MousePointerClick className="w-5 h-5 text-blue-600" />
+                 </div>
+                 <h3 className="font-bold text-slate-900 mb-2">When to use this?</h3>
+                 <ul className="space-y-3 text-sm text-slate-600">
+                    <li className="flex gap-2">
+                       <span className="text-blue-500">•</span>
+                       <span><b>Product Sourcing:</b> Before buying bulk stock from Alibaba/Indiamart. If "Weighted Net Profit" is negative, do not buy.</span>
+                    </li>
+                    <li className="flex gap-2">
+                       <span className="text-blue-500">•</span>
+                       <span><b>Ad Budgeting:</b> Check the "Est. ROAS" top right. If your Facebook Ads ROAS is lower than this number, you are losing money.</span>
+                    </li>
+                    <li className="flex gap-2">
+                       <span className="text-blue-500">•</span>
+                       <span><b>Fee Updates:</b> When Amazon changes referral fees, check if your price needs to increase.</span>
+                    </li>
+                 </ul>
+              </div>
+
+              {/* WHY TO USE */}
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                 <div className="bg-orange-50 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Lightbulb className="w-5 h-5 text-orange-600" />
+                 </div>
+                 <h3 className="font-bold text-slate-900 mb-2">Why Weighted Profit?</h3>
+                 <p className="text-sm text-slate-600 mb-3 leading-relaxed">
+                    Most sellers calculate: <i>(Sale Price - Cost - Fees)</i>. This is wrong because it ignores Returns (RTO).
+                 </p>
+                 <div className="bg-slate-50 p-3 rounded text-xs text-slate-700 border border-slate-100">
+                    <p className="font-semibold mb-1">The Reality:</p>
+                    <p>If you profit ₹200 on a sale, but lose ₹150 on a return...</p>
+                    <p className="mt-1">And 20% of orders return...</p>
+                    <p className="mt-1 font-bold text-blue-600">Your real profit is only ₹130, not ₹200.</p>
+                 </div>
+              </div>
+
+              {/* HOW TO USE */}
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                 <div className="bg-green-50 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <HelpCircle className="w-5 h-5 text-green-600" />
+                 </div>
+                 <h3 className="font-bold text-slate-900 mb-2">Field Guide</h3>
+                 <ul className="space-y-3 text-sm text-slate-600">
+                    <li className="flex flex-col">
+                       <span className="font-bold text-slate-800">GST Mode</span>
+                       <span>Use <b>Inclusive</b> for Amazon/Flipkart. Use <b>Exclusive</b> if tax is added at checkout (e.g., Shopify).</span>
+                    </li>
+                    <li className="flex flex-col">
+                       <span className="font-bold text-slate-800">CPA (Ads Cost)</span>
+                       <span>The average amount you spend on ads to get ONE purchase. Find this in your Ads Manager.</span>
+                    </li>
+                    <li className="flex flex-col">
+                       <span className="font-bold text-slate-800">Damage Rate</span>
+                       <span>Percentage of returned items that are broken and cannot be sold again (Total loss).</span>
+                    </li>
+                 </ul>
+              </div>
+
+           </div>
+        </div>
+
       </div>
     </div>
   );
