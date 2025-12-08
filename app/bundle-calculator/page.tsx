@@ -1,207 +1,396 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { 
+  Package, 
+  Plus, 
+  Trash2, 
+  TrendingUp, 
+  Scale, 
+  DollarSign, 
+  Box, 
+  CheckCircle2, 
+  AlertCircle, 
+  Layers,
+  BookOpen,
+  MousePointerClick,
+  Lightbulb
+} from 'lucide-react';
 
+// --- TYPES ---
 type Component = {
   id: number;
   name: string;
-  cost: number | '';
-  qty: number | '';
+  cost: number;        // Sourcing Cost
+  individualPrice: number; // Selling Price if sold alone
+  weight: number;      // Weight in grams
+  qty: number;
 };
 
-export default function BundleCalculator() {
-  // Bundle Details
-  const [bundlePrice, setBundlePrice] = useState<number | ''>('');
-  const [referralFee, setReferralFee] = useState<number | ''>(''); // %
-  const [fbaFee, setFbaFee] = useState<number | ''>(''); // Fixed fee for the WHOLE bundle
-  const [bundlePackaging, setBundlePackaging] = useState<number | ''>(''); // Box to hold them together
+export default function BundleIntelligenceCenter() {
+  // --- STATE ---
+  
+  // 1. Bundle Config
+  const [bundlePrice, setBundlePrice] = useState<number>(1500); // Target Selling Price
+  const [referralFeePct, setReferralFeePct] = useState<number>(15); // Amazon Category Fee %
+  const [packagingCost, setPackagingCost] = useState<number>(30);   // Box cost
+  const [packagingWeight, setPackagingWeight] = useState<number>(100); // Box weight (g)
 
-  // Components List
+  // 2. Components List
   const [components, setComponents] = useState<Component[]>([
-    { id: 1, name: 'Item A', cost: '', qty: 1 }
+    { id: 1, name: 'Shampoo 500ml', cost: 150, individualPrice: 499, weight: 550, qty: 1 },
+    { id: 2, name: 'Conditioner 500ml', cost: 180, individualPrice: 549, weight: 550, qty: 1 }
   ]);
 
-  // Outputs
-  const [totalCost, setTotalCost] = useState<number>(0);
-  const [netProfit, setNetProfit] = useState<number>(0);
-  const [margin, setMargin] = useState<number>(0);
-  const [showGuide, setShowGuide] = useState(false);
+  // 3. Logistics Config (Advanced)
+  const [shippingRate, setShippingRate] = useState<number>(70); // Base fee for 500g
+  const [shippingTierStep, setShippingTierStep] = useState<number>(30); // Extra per 500g
 
-  // Add/Remove Components
+  // 4. Outputs
+  const [metrics, setMetrics] = useState({
+    totalSourcingCost: 0,
+    totalWeightKg: 0,
+    estimatedFBAFee: 0,
+    referralFeeAmt: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    margin: 0,
+    roi: 0,
+    individualTotal: 0,
+    customerSavings: 0
+  });
+
+  // --- CALCULATION ENGINE ---
+  useEffect(() => {
+    // A. Component Aggregation
+    let sourcingCost = 0;
+    let totalWtGrams = 0;
+    let individualSum = 0;
+
+    components.forEach(c => {
+      sourcingCost += c.cost * c.qty;
+      totalWtGrams += c.weight * c.qty;
+      individualSum += c.individualPrice * c.qty;
+    });
+
+    // Add Packaging
+    const finalWeightGrams = totalWtGrams + packagingWeight;
+    const finalWeightKg = finalWeightGrams / 1000;
+
+    // B. Logistics Logic (Step-based calculation)
+    // First 500g = Base Rate. Every additional 500g = Step Rate.
+    let logisticsCost = shippingRate; 
+    if (finalWeightGrams > 500) {
+      const extraWeight = finalWeightGrams - 500;
+      const extraSteps = Math.ceil(extraWeight / 500);
+      logisticsCost += extraSteps * shippingTierStep;
+    }
+
+    // C. Fee Logic
+    const refFee = bundlePrice * (referralFeePct / 100);
+    const taxApprox = (refFee + logisticsCost) * 0.18; // GST on services (Optional approximation)
+    
+    // D. Final P&L
+    const totalExpenses = sourcingCost + packagingCost + logisticsCost + refFee + taxApprox;
+    const profit = bundlePrice - totalExpenses;
+    
+    // E. Metrics
+    const margin = bundlePrice > 0 ? (profit / bundlePrice) * 100 : 0;
+    const roi = totalExpenses > 0 ? (profit / totalExpenses) * 100 : 0;
+    const savings = individualSum > 0 ? ((individualSum - bundlePrice) / individualSum) * 100 : 0;
+
+    setMetrics({
+      totalSourcingCost: sourcingCost,
+      totalWeightKg: finalWeightKg,
+      estimatedFBAFee: logisticsCost,
+      referralFeeAmt: refFee,
+      totalExpenses,
+      netProfit: profit,
+      margin,
+      roi,
+      individualTotal: individualSum,
+      customerSavings: savings
+    });
+
+  }, [bundlePrice, referralFeePct, packagingCost, packagingWeight, components, shippingRate, shippingTierStep]);
+
+  // --- ACTIONS ---
   const addComponent = () => {
-    setComponents([...components, { id: Date.now(), name: `Item ${components.length + 1}`, cost: '', qty: 1 }]);
+    setComponents([...components, { 
+      id: Date.now(), 
+      name: 'New Item', 
+      cost: 0, 
+      individualPrice: 0, 
+      weight: 0, 
+      qty: 1 
+    }]);
   };
 
   const removeComponent = (id: number) => {
-    if (components.length > 1) {
-      setComponents(components.filter(c => c.id !== id));
-    }
+    if (components.length > 1) setComponents(components.filter(c => c.id !== id));
   };
 
-  const updateComponent = (id: number, field: keyof Component, value: any) => {
-    setComponents(components.map(c => c.id === id ? { ...c, [field]: value } : c));
+  const updateComponent = (id: number, field: keyof Component, val: any) => {
+    setComponents(components.map(c => c.id === id ? { ...c, [field]: val } : c));
   };
 
-  useEffect(() => {
-    const price = Number(bundlePrice) || 0;
-    const refPct = Number(referralFee) || 0;
-    const fba = Number(fbaFee) || 0;
-    const pack = Number(bundlePackaging) || 0;
-
-    // 1. Calculate Total Component Cost
-    let componentsCost = 0;
-    components.forEach(c => {
-      const cCost = Number(c.cost) || 0;
-      const cQty = Number(c.qty) || 0;
-      componentsCost += (cCost * cQty);
-    });
-
-    // 2. Calculate Fees
-    const referralAmount = price * (refPct / 100);
-    
-    // 3. Total Costs
-    const totalExpenses = componentsCost + referralAmount + fba + pack;
-
-    // 4. Profit
-    const profit = price - totalExpenses;
-    const profitMargin = price > 0 ? (profit / price) * 100 : 0;
-
-    setTotalCost(totalExpenses);
-    setNetProfit(profit);
-    setMargin(profitMargin);
-
-  }, [bundlePrice, referralFee, fbaFee, bundlePackaging, components]);
+  const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-6">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Bundle Profit Calculator
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Combine multiple items into one SKU and check profitability.
-          </p>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Layers className="w-8 h-8 text-indigo-500" />
+              Bundle Intelligence Center
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Advanced unit economics & logistics planner for product kits.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+             <div className="text-right">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Total Bundle Weight</p>
+                <p className="text-lg font-mono font-bold text-white">{metrics.totalWeightKg.toFixed(2)} kg</p>
+             </div>
+             <div className="h-8 w-px bg-slate-700"></div>
+             <div className="text-right">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Est. FBA Fee</p>
+                <p className="text-lg font-mono font-bold text-white">{fmt(metrics.estimatedFBAFee)}</p>
+             </div>
+          </div>
         </div>
 
-        {/* --- HOW TO USE SECTION --- */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
-          <button 
-            onClick={() => setShowGuide(!showGuide)}
-            className="w-full flex justify-between items-center p-4 text-blue-800 font-bold text-sm hover:bg-blue-100 transition-colors"
-          >
-            <span>📖 How to Use This Tool</span>
-            <svg className={`w-5 h-5 transition-transform ${showGuide ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-          </button>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
           
-          {showGuide && (
-            <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-2 bg-blue-50/50">
-              <p><strong>1. Add Components:</strong> List every item going into the bundle (e.g., 1 Shampoo, 1 Conditioner).</p>
-              <p><strong>2. Enter Bundle Price:</strong> The final price you will sell the whole set for.</p>
-              <p><strong>3. Enter Fees:</strong> Remember, FBA fees are based on the <strong>total size/weight</strong> of the bundle, not individual items.</p>
-              <p><strong>Why Bundle?</strong> You save on FBA fees because you only pay for 1 shipment/pick-and-pack instead of 2!</p>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* LEFT: COMPONENTS */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-gray-700">Bundle Contents</h3>
-              <button onClick={addComponent} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200">+ Add Item</button>
-            </div>
+          {/* --- LEFT: BUILDER (7 Cols) --- */}
+          <div className="lg:col-span-7 space-y-6">
             
-            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-              {components.map((comp, index) => (
-                <div key={comp.id} className="flex gap-2 items-center bg-gray-50 p-2 rounded border border-gray-200">
-                  <div className="w-8 text-center font-bold text-gray-400 text-xs">{index + 1}</div>
-                  <input 
-                    type="text" 
-                    placeholder="Item Name" 
-                    className="flex-1 p-2 text-sm border rounded" 
-                    value={comp.name} 
-                    onChange={(e) => updateComponent(comp.id, 'name', e.target.value)}
-                  />
-                  <input 
-                    type="number" 
-                    placeholder="Cost ₹" 
-                    className="w-20 p-2 text-sm border rounded" 
-                    value={comp.cost} 
-                    onChange={(e) => updateComponent(comp.id, 'cost', Number(e.target.value))}
-                  />
-                  <input 
-                    type="number" 
-                    placeholder="Qty" 
-                    className="w-16 p-2 text-sm border rounded" 
-                    value={comp.qty} 
-                    onChange={(e) => updateComponent(comp.id, 'qty', Number(e.target.value))}
-                  />
-                  {components.length > 1 && (
-                    <button onClick={() => removeComponent(comp.id)} className="text-red-400 hover:text-red-600 font-bold px-2">×</button>
-                  )}
-                </div>
-              ))}
+            {/* Component List */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+               <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                     <Package className="w-4 h-4 text-blue-400" /> Bundle Components
+                  </h3>
+                  <button onClick={addComponent} className="text-xs flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-full transition">
+                     <Plus className="w-3 h-3" /> Add Item
+                  </button>
+               </div>
+               
+               <div className="p-4 space-y-3">
+                  {components.map((comp, i) => (
+                     <div key={comp.id} className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex flex-col md:flex-row gap-4 items-start md:items-center group">
+                        <div className="flex-1 w-full">
+                           <div className="flex justify-between text-xs text-slate-500 mb-1">
+                              <span>Item Name</span>
+                              <span className="group-hover:text-red-400 cursor-pointer" onClick={() => removeComponent(comp.id)}><Trash2 className="w-3 h-3" /></span>
+                           </div>
+                           <input type="text" value={comp.name} onChange={e => updateComponent(comp.id, 'name', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm focus:border-indigo-500 outline-none text-white" />
+                        </div>
+                        
+                        <div className="grid grid-cols-4 gap-2 w-full md:w-auto">
+                           <div className="w-20">
+                              <label className="text-[10px] text-slate-500 block mb-1">Cost</label>
+                              <input type="number" value={comp.cost} onChange={e => updateComponent(comp.id, 'cost', Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-sm outline-none text-white" />
+                           </div>
+                           <div className="w-20">
+                              <label className="text-[10px] text-slate-500 block mb-1">Sold Alone</label>
+                              <input type="number" value={comp.individualPrice} onChange={e => updateComponent(comp.id, 'individualPrice', Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-sm outline-none text-white" />
+                           </div>
+                           <div className="w-20">
+                              <label className="text-[10px] text-slate-500 block mb-1">Wt (g)</label>
+                              <input type="number" value={comp.weight} onChange={e => updateComponent(comp.id, 'weight', Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-sm outline-none text-white" />
+                           </div>
+                           <div className="w-16">
+                              <label className="text-[10px] text-slate-500 block mb-1">Qty</label>
+                              <input type="number" value={comp.qty} onChange={e => updateComponent(comp.id, 'qty', Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-sm outline-none text-white font-bold bg-indigo-900/20 border-indigo-900/50" />
+                           </div>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+               <div className="px-6 py-3 bg-slate-950 border-t border-slate-800 text-right text-xs text-slate-400">
+                  Total Sourcing Cost: <span className="text-white font-mono">{fmt(metrics.totalSourcingCost)}</span>
+               </div>
             </div>
 
-            <div className="bg-gray-100 p-3 rounded-lg text-right text-xs font-bold text-gray-600">
-              Total Component Cost: ₹{components.reduce((acc, curr) => acc + (Number(curr.cost||0) * Number(curr.qty||0)), 0).toFixed(2)}
+            {/* Config Panel */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                  <h3 className="font-bold text-white text-sm mb-4 flex items-center gap-2">
+                     <DollarSign className="w-4 h-4 text-emerald-400" /> Pricing Strategy
+                  </h3>
+                  <div className="space-y-4">
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Bundle Selling Price</label>
+                        <input type="number" value={bundlePrice} onChange={e => setBundlePrice(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-bold text-lg focus:border-emerald-500 outline-none" />
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Category Referral Fee (%)</label>
+                        <input type="number" value={referralFeePct} onChange={e => setReferralFeePct(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm focus:border-emerald-500 outline-none" />
+                     </div>
+                  </div>
+               </div>
+
+               <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                  <h3 className="font-bold text-white text-sm mb-4 flex items-center gap-2">
+                     <Box className="w-4 h-4 text-orange-400" /> Logistics & Packaging
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                     <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold mb-1 block">Box Cost</label>
+                        <input type="number" value={packagingCost} onChange={e => setPackagingCost(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                     </div>
+                     <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold mb-1 block">Box Weight (g)</label>
+                        <input type="number" value={packagingWeight} onChange={e => setPackagingWeight(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                     </div>
+                  </div>
+                  <div className="pt-3 border-t border-slate-800">
+                     <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                        <span>FBA Base Rate (500g)</span>
+                        <span>Tier Step (500g)</span>
+                     </div>
+                     <div className="flex gap-2">
+                        <input type="number" value={shippingRate} onChange={e => setShippingRate(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-white" />
+                        <input type="number" value={shippingTierStep} onChange={e => setShippingTierStep(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-white" />
+                     </div>
+                  </div>
+               </div>
             </div>
+
           </div>
 
-          {/* RIGHT: ECONOMICS */}
-          <div className="space-y-5">
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 space-y-3">
-              <h3 className="font-bold text-blue-800 text-sm">Bundle Selling Details</h3>
-              <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Total Bundle Price (₹)</label>
-                <input type="number" className="w-full p-2 border rounded" value={bundlePrice} onChange={e => setBundlePrice(Number(e.target.value))} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">Referral Fee (%)</label>
-                  <input type="number" className="w-full p-2 border rounded" value={referralFee} onChange={e => setReferralFee(Number(e.target.value))} />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">FBA/Ship Fee (Total)</label>
-                  <input type="number" className="w-full p-2 border rounded" value={fbaFee} onChange={e => setFbaFee(Number(e.target.value))} placeholder="For whole box" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Bundle Packaging Cost (₹)</label>
-                <input type="number" className="w-full p-2 border rounded" value={bundlePackaging} onChange={e => setBundlePackaging(Number(e.target.value))} placeholder="Box + Tape" />
-              </div>
+          {/* --- RIGHT: INTELLIGENCE (5 Cols) --- */}
+          <div className="lg:col-span-5 space-y-6">
+            
+            {/* 1. Value Prop Card */}
+            <div className={`rounded-xl border p-6 ${metrics.customerSavings > 10 ? 'bg-emerald-950/20 border-emerald-900' : 'bg-orange-950/20 border-orange-900'}`}>
+               <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                     <TrendingUp className="w-4 h-4" /> Value Proposition
+                  </h3>
+                  <span className={`text-xs font-bold px-2 py-1 rounded ${metrics.customerSavings > 10 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                     {metrics.customerSavings.toFixed(1)}% Savings
+                  </span>
+               </div>
+               
+               <p className="text-xs text-slate-400 mb-4">
+                  Buying separately costs <b>{fmt(metrics.individualTotal)}</b>. Buying your bundle costs <b>{fmt(bundlePrice)}</b>.
+               </p>
+
+               {metrics.customerSavings < 5 ? (
+                  <div className="flex items-start gap-2 text-xs text-orange-300 bg-orange-900/20 p-2 rounded border border-orange-900/50">
+                     <AlertCircle className="w-4 h-4 shrink-0" />
+                     <p>Warning: This bundle offers little value to the customer. Consider lowering the price to increase conversion.</p>
+                  </div>
+               ) : (
+                  <div className="flex items-start gap-2 text-xs text-emerald-300 bg-emerald-900/20 p-2 rounded border border-emerald-900/50">
+                     <CheckCircle2 className="w-4 h-4 shrink-0" />
+                     <p>Great! The discount is significant enough to motivate customers to buy the bundle.</p>
+                  </div>
+               )}
             </div>
 
-            {/* RESULTS */}
-            <div className="flex flex-col space-y-4">
-              <div className="bg-slate-900 text-white p-6 rounded-xl shadow-lg text-center">
-                <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">Net Bundle Profit</p>
-                <div className={`text-4xl font-extrabold ${netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  ₹{netProfit.toFixed(2)}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div className="bg-gray-100 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 uppercase">Total Cost</p>
-                  <p className="font-bold text-lg">₹{totalCost.toFixed(2)}</p>
-                </div>
-                <div className="bg-gray-100 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 uppercase">Margin</p>
-                  <p className={`font-bold text-lg ${margin >= 15 ? 'text-green-600' : 'text-yellow-600'}`}>{margin.toFixed(1)}%</p>
-                </div>
-              </div>
+            {/* 2. Profit Dashboard */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+               <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-4">Financial Breakdown</h3>
+               
+               <div className="space-y-3 mb-6">
+                  <div className="flex justify-between text-sm">
+                     <span className="text-slate-400">Selling Price</span>
+                     <span className="text-white font-mono">{fmt(bundlePrice)}</span>
+                  </div>
+                  <div className="h-px bg-slate-800"></div>
+                  <div className="flex justify-between text-sm text-slate-400">
+                     <span>(-) Product Cost</span>
+                     <span>{fmt(metrics.totalSourcingCost)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-slate-400">
+                     <span>(-) Packaging</span>
+                     <span>{fmt(packagingCost)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-slate-400">
+                     <span>(-) FBA/Shipping</span>
+                     <span>{fmt(metrics.estimatedFBAFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-slate-400">
+                     <span>(-) Referral Fee</span>
+                     <span>{fmt(metrics.referralFeeAmt)}</span>
+                  </div>
+               </div>
+
+               <div className="bg-slate-950 rounded-lg p-4 border border-slate-800">
+                  <div className="flex justify-between items-end mb-1">
+                     <span className="text-slate-400 text-xs uppercase font-bold">Net Profit</span>
+                     <span className={`text-2xl font-bold ${metrics.netProfit > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {fmt(metrics.netProfit)}
+                     </span>
+                  </div>
+                  <div className="flex gap-3 mt-3">
+                     <div className={`flex-1 text-center p-2 rounded ${metrics.margin > 15 ? 'bg-emerald-900/20 text-emerald-400' : 'bg-slate-900 text-slate-400'}`}>
+                        <div className="text-[10px] uppercase">Margin</div>
+                        <div className="font-bold">{metrics.margin.toFixed(1)}%</div>
+                     </div>
+                     <div className={`flex-1 text-center p-2 rounded ${metrics.roi > 30 ? 'bg-blue-900/20 text-blue-400' : 'bg-slate-900 text-slate-400'}`}>
+                        <div className="text-[10px] uppercase">ROI</div>
+                        <div className="font-bold">{metrics.roi.toFixed(1)}%</div>
+                     </div>
+                  </div>
+               </div>
             </div>
 
           </div>
-
         </div>
+
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-indigo-500" />
+              Strategy Guide
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-blue-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Layers className="w-5 h-5 text-blue-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Why Bundle?</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    <b>Reduce FBA Fees:</b> You pay the "Pick & Pack" fee only ONCE for the whole box, instead of twice for two items. This instantly increases margin.
+                    <br/>
+                    <b>Increase AOV:</b> Higher Average Order Value means you can afford to spend more on Ads.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-orange-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Scale className="w-5 h-5 text-orange-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">The Weight Trap</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Watch the <b>Total Weight</b> in the top right. If your bundle crosses 500g or 1kg, you jump to a higher shipping tier, which might eat up all your savings. Keep packaging light!
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <MousePointerClick className="w-5 h-5 text-emerald-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Value Perception</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Use the <b>Value Proposition</b> card. If the customer isn't saving at least 10-15% compared to buying items individually, they won't buy the bundle.
+                 </p>
+              </div>
+
+           </div>
+        </div>
+
       </div>
-      <div className="mt-8 text-center text-gray-400 text-sm">Created by SmartRwl</div>
     </div>
   );
 }

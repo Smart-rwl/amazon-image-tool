@@ -1,170 +1,345 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Barcode from 'react-barcode';
+import { 
+  Printer, 
+  Download, 
+  Settings, 
+  Barcode as BarcodeIcon, 
+  Copy, 
+  CheckCircle2, 
+  BookOpen,
+  Info,
+  Package,
+  Layers
+} from 'lucide-react';
 
-export default function BarcodeGenerator() {
-  const [text, setText] = useState('X001234567');
+export default function AdvancedBarcodeGenerator() {
+  // --- STATE ---
+  const [value, setValue] = useState('X001234567'); // The SKU/FNSKU
+  const [title, setTitle] = useState('Wireless Headphones - Noise Cancelling - Black'); // FBA Title
+  const [condition, setCondition] = useState('New'); // FBA Condition
+  
+  // Configuration
   const [format, setFormat] = useState('CODE128');
-  const [width, setWidth] = useState(2);
-  const [height, setHeight] = useState(100);
+  const [width, setWidth] = useState(1.5);
+  const [height, setHeight] = useState(60);
+  const [fontSize, setFontSize] = useState(12);
   const [showText, setShowText] = useState(true);
-  const [showGuide, setShowGuide] = useState(false);
+  
+  // Bulk Settings
+  const [quantity, setQuantity] = useState(1); // Single vs Batch
+  const [layoutMode, setLayoutMode] = useState<'single' | 'sheet'>('single');
 
-  // Print Function
+  const barcodeRef = useRef<HTMLDivElement>(null);
+
+  // --- ACTIONS ---
+  
+  // 1. Print Logic
   const handlePrint = () => {
-    const printContent = document.getElementById('barcode-area');
+    const printContent = document.getElementById('printable-area');
     if (printContent) {
-      const win = window.open('', '', 'height=500,width=500');
+      const win = window.open('', '', 'height=800,width=800');
       if (win) {
-        win.document.write('<html><head><title>Print Barcode</title></head><body style="display:flex;justify-content:center;align-items:center;height:100vh;">');
+        win.document.write('<html><head><title>Print Labels</title>');
+        // Inject styles for print
+        win.document.write(`
+          <style>
+            body { font-family: sans-serif; margin: 0; padding: 20px; }
+            .label-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+            .label-item { border: 1px dashed #ccc; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; height: 140px; page-break-inside: avoid; }
+            .label-title { font-size: 10px; margin-bottom: 5px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .label-condition { font-size: 9px; font-weight: bold; margin-top: 2px; }
+            @media print {
+              .label-item { border: none; } /* Remove borders for actual printing */
+            }
+          </style>
+        `);
+        win.document.write('</head><body>');
         win.document.write(printContent.innerHTML);
         win.document.write('</body></html>');
         win.document.close();
-        win.print();
+        setTimeout(() => win.print(), 500);
       }
     }
   };
 
+  // 2. Download SVG
+  const handleDownload = () => {
+    const svg = barcodeRef.current?.querySelector('svg');
+    if (svg) {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${value}.svg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-6">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Barcode & FNSKU Generator
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Generate standard barcodes for your Amazon FBA inventory or Warehouse.
-          </p>
-        </div>
-
-        {/* --- HOW TO USE SECTION --- */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
-          <button 
-            onClick={() => setShowGuide(!showGuide)}
-            className="w-full flex justify-between items-center p-4 text-blue-800 font-bold text-sm hover:bg-blue-100 transition-colors"
-          >
-            <span>📖 How to Use This Tool</span>
-            <svg className={`w-5 h-5 transition-transform ${showGuide ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-          </button>
-          
-          {showGuide && (
-            <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-2 bg-blue-50/50">
-              <p><strong>1. Enter Data:</strong> Paste your Amazon FNSKU (starts with X0...) or your Product SKU.</p>
-              <div>
-                <strong>2. Select Format:</strong> 
-                <ul className="list-disc list-inside ml-2">
-                  <li><strong>CODE128:</strong> (Standard) Best for alphanumeric SKUs and Amazon FNSKU.</li>
-                  <li><strong>UPC/EAN:</strong> Use only if you are printing official retail barcodes (Numbers only).</li>
-                </ul>
-              </div>
-              <p><strong>3. Customize:</strong> Adjust width/height to fit your sticker paper.</p>
-              <p><strong>4. Print:</strong> Click Print to open a clean window for printing on sticky labels.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* CONTROLS */}
-          <div className="space-y-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Barcode Content (SKU/ASIN)</label>
-              <input 
-                type="text" 
-                className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 font-mono"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Format</label>
-              <select 
-                className="w-full p-2 border rounded bg-white"
-                value={format}
-                onChange={(e) => setFormat(e.target.value)}
-              >
-                <option value="CODE128">CODE128 (Amazon Standard)</option>
-                <option value="UPC">UPC (Retail)</option>
-                <option value="EAN13">EAN-13 (International)</option>
-                <option value="CODE39">CODE39 (Old Standard)</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Bar Width</label>
-                <input 
-                  type="number" 
-                  className="w-full p-2 border rounded"
-                  value={width}
-                  onChange={(e) => setWidth(Number(e.target.value))}
-                  min={1} max={4}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Height</label>
-                <input 
-                  type="number" 
-                  className="w-full p-2 border rounded"
-                  value={height}
-                  onChange={(e) => setHeight(Number(e.target.value))}
-                  min={10} max={200}
-                />
-              </div>
-            </div>
-
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={showText}
-                onChange={(e) => setShowText(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <span className="text-sm text-gray-700">Show Text Below Barcode</span>
-            </label>
-
-            <button
-              onClick={handlePrint}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-              Print Label
-            </button>
-
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <BarcodeIcon className="w-8 h-8 text-indigo-500" />
+              FBA Label Command Center
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Generate compliance-ready inventory labels for Amazon FBA & Warehousing.
+            </p>
           </div>
+          <div className="flex gap-3">
+             <button 
+                onClick={handleDownload}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm border border-slate-700 transition"
+             >
+                <Download className="w-4 h-4" /> Download SVG
+             </button>
+             <button 
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-bold transition shadow-lg shadow-indigo-900/20"
+             >
+                <Printer className="w-4 h-4" /> Print Labels
+             </button>
+          </div>
+        </div>
 
-          {/* PREVIEW */}
-          <div className="flex flex-col items-center justify-center bg-white border-2 border-dashed border-gray-300 rounded-lg p-8">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-8">Live Preview</p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
+          
+          {/* --- LEFT: CONFIGURATION (4 Cols) --- */}
+          <div className="lg:col-span-4 space-y-6">
             
-            <div id="barcode-area" className="bg-white p-4">
-              <Barcode 
-                value={text}
-                format={format as any} 
-                width={width}
-                height={height}
-                displayValue={showText}
-                font="monospace"
-                fontSize={16}
-                margin={10}
-              />
-            </div>
+            {/* 1. Data Input */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <Settings className="w-4 h-4 text-indigo-400" /> Label Data
+               </h3>
+               
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Barcode Value (SKU/FNSKU)</label>
+                     <div className="relative">
+                        <input 
+                           type="text" 
+                           value={value} 
+                           onChange={e => setValue(e.target.value)} 
+                           className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-indigo-500 focus:outline-none"
+                        />
+                        {value.startsWith('X0') && <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute right-3 top-3" />}
+                     </div>
+                  </div>
+                  
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Product Title (Optional)</label>
+                     <input 
+                        type="text" 
+                        value={title} 
+                        onChange={e => setTitle(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                        placeholder="e.g. Wireless Mouse"
+                     />
+                     <p className="text-[10px] text-slate-500 mt-1">Required for Amazon FBA transparency.</p>
+                  </div>
 
-            {text.startsWith('X0') && (
-               <div className="mt-6 text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">
-                 ✅ Valid FNSKU Format Detected
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Condition</label>
+                     <select 
+                        value={condition} 
+                        onChange={e => setCondition(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                     >
+                        <option value="New">New</option>
+                        <option value="Used - Like New">Used - Like New</option>
+                        <option value="Used - Good">Used - Good</option>
+                     </select>
+                  </div>
                </div>
-            )}
+            </div>
+
+            {/* 2. Visual Settings */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <Layers className="w-4 h-4 text-indigo-400" /> Layout & Bulk
+               </h3>
+               
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Format</label>
+                        <select 
+                           value={format} 
+                           onChange={e => setFormat(e.target.value)}
+                           className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm"
+                        >
+                           <option value="CODE128">CODE128 (Auto)</option>
+                           <option value="UPC">UPC</option>
+                           <option value="EAN13">EAN-13</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Height</label>
+                        <input 
+                           type="number" 
+                           value={height} 
+                           onChange={e => setHeight(Number(e.target.value))} 
+                           className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm"
+                        />
+                     </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-800">
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Print Mode</label>
+                     <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                        <button 
+                           onClick={() => { setLayoutMode('single'); setQuantity(1); }}
+                           className={`flex-1 py-1.5 text-xs font-medium rounded ${layoutMode === 'single' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                        >
+                           Single
+                        </button>
+                        <button 
+                           onClick={() => { setLayoutMode('sheet'); setQuantity(30); }}
+                           className={`flex-1 py-1.5 text-xs font-medium rounded ${layoutMode === 'sheet' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                        >
+                           Sheet (30-up)
+                        </button>
+                     </div>
+                  </div>
+                  
+                  {layoutMode === 'sheet' && (
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Quantity</label>
+                        <input 
+                           type="number" 
+                           value={quantity} 
+                           onChange={e => setQuantity(Number(e.target.value))} 
+                           className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm"
+                        />
+                     </div>
+                  )}
+
+               </div>
+            </div>
+
+          </div>
+
+          {/* --- RIGHT: PREVIEW (8 Cols) --- */}
+          <div className="lg:col-span-8">
+            <div className="bg-slate-200 rounded-xl border-4 border-slate-800 p-8 min-h-[500px] flex justify-center overflow-auto shadow-inner">
+               
+               {/* This ID is what gets grabbed by the Print Function */}
+               <div id="printable-area" className="w-full max-w-[700px]">
+                  
+                  {layoutMode === 'single' ? (
+                     // SINGLE PREVIEW
+                     <div className="flex justify-center items-center h-full">
+                        <div ref={barcodeRef} className="bg-white p-6 rounded shadow-xl flex flex-col items-center text-center border border-slate-300">
+                           {title && <div className="text-black text-xs font-sans mb-2 max-w-[250px] leading-tight">{title}</div>}
+                           <Barcode 
+                              value={value}
+                              format={format as any}
+                              width={width}
+                              height={height}
+                              fontSize={fontSize}
+                              displayValue={showText}
+                              margin={0}
+                           />
+                           {condition && <div className="text-black text-[10px] font-bold uppercase mt-1">{condition}</div>}
+                        </div>
+                     </div>
+                  ) : (
+                     // SHEET PREVIEW (Grid)
+                     <div className="grid grid-cols-3 gap-2 bg-white p-2 shadow-2xl">
+                        {Array.from({ length: quantity }).map((_, i) => (
+                           <div key={i} className="border border-dashed border-gray-300 p-2 flex flex-col items-center justify-center text-center h-[140px]">
+                              {title && <div className="text-black text-[10px] font-sans mb-1 w-full overflow-hidden text-ellipsis whitespace-nowrap">{title}</div>}
+                              <Barcode 
+                                 value={value}
+                                 format={format as any}
+                                 width={1.2} // Slightly smaller for grids
+                                 height={40}
+                                 fontSize={11}
+                                 displayValue={showText}
+                                 margin={0}
+                              />
+                              {condition && <div className="text-black text-[9px] font-bold uppercase mt-1">{condition}</div>}
+                           </div>
+                        ))}
+                     </div>
+                  )}
+
+               </div>
+            </div>
+            <div className="text-center mt-3 text-xs text-slate-500 flex items-center justify-center gap-2">
+               <Info className="w-3 h-3" />
+               Preview is approximate. Print layout auto-adjusts to remove borders on actual paper.
+            </div>
           </div>
 
         </div>
+
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-indigo-500" />
+              Barcode Master Guide
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-indigo-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Package className="w-5 h-5 text-indigo-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">When to use FNSKU?</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    If you sell on Amazon FBA, use the <b>FNSKU</b> (Starts with X00). 
+                    <br/><br/>
+                    Do <b>not</b> use the UPC/EAN if Amazon provides an FNSKU, otherwise, your inventory might get "commingled" with other sellers' fake products.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">FBA Compliance</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Amazon strictly requires:
+                    <br/>
+                    1. A scannable Barcode with white space (Quiet Zone).
+                    <br/>
+                    2. The human-readable Item Name.
+                    <br/>
+                    3. The Condition (e.g., "New").
+                    <br/>
+                    <b>This tool adds all of these automatically.</b>
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-blue-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Copy className="w-5 h-5 text-blue-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Printing Tips</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Use <b>30-up Label Sheets</b> (Avery 5160). 
+                    <br/>
+                    When printing, ensure your printer scaling is set to <b>100%</b> or "Actual Size." Do not select "Fit to Page" or the barcode bars might get distorted and become unscannable.
+                 </p>
+              </div>
+
+           </div>
+        </div>
+
       </div>
-      <div className="mt-8 text-center text-gray-400 text-sm">Created by SmartRwl</div>
     </div>
   );
 }

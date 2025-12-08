@@ -1,176 +1,356 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { 
+  Box, 
+  Container, 
+  Plus, 
+  Trash2, 
+  BarChart3, 
+  Truck, 
+  Anchor, 
+  Scale, 
+  BookOpen,
+  Info,
+  PackageCheck,
+  Settings
+} from 'lucide-react';
 
-export default function CbmCalculator() {
-  // Inputs
-  const [length, setLength] = useState<number | ''>('');
-  const [width, setWidth] = useState<number | ''>('');
-  const [height, setHeight] = useState<number | ''>('');
-  const [cartonCount, setCartonCount] = useState<number | ''>('');
-  const [cartonWeight, setCartonWeight] = useState<number | ''>(''); // kg per carton
+// --- TYPES ---
+type CargoItem = {
+  id: number;
+  name: string;
+  length: number;
+  width: number;
+  height: number;
+  weight: number; // per carton
+  qty: number;    // number of cartons
+};
+
+type ContainerType = {
+  name: string;
+  cbm: number;
+  maxWeight: number; // kg
+};
+
+const CONTAINERS: ContainerType[] = [
+  { name: '20ft Standard', cbm: 33.2, maxWeight: 25000 },
+  { name: '40ft Standard', cbm: 67.7, maxWeight: 27600 },
+  { name: '40ft High Cube', cbm: 76.3, maxWeight: 28600 },
+];
+
+export default function LogisticsOptimizationEngine() {
+  // --- STATE ---
   const [unit, setUnit] = useState<'cm' | 'inch'>('cm');
+  const [items, setItems] = useState<CargoItem[]>([
+    { id: 1, name: 'Master Carton A', length: 50, width: 40, height: 30, weight: 12, qty: 100 }
+  ]);
+  
+  const [selectedContainer, setSelectedContainer] = useState<string>('20ft Standard');
 
   // Outputs
-  const [totalCbm, setTotalCbm] = useState<number>(0);
-  const [totalWeight, setTotalWeight] = useState<number>(0);
-  const [totalVolumetric, setTotalVolumetric] = useState<number>(0);
+  const [metrics, setMetrics] = useState({
+    totalCbm: 0,
+    totalGrossWeight: 0,
+    totalVolumetricWeight: 0,
+    totalCartons: 0,
+    utilization: 0,
+    weightUtilization: 0
+  });
 
+  // --- CALCULATION ENGINE ---
   useEffect(() => {
-    const len = Number(length) || 0;
-    const wid = Number(width) || 0;
-    const hgt = Number(height) || 0;
-    const qty = Number(cartonCount) || 0;
-    const wgt = Number(cartonWeight) || 0;
+    let totCbm = 0;
+    let totGw = 0;
+    let totVol = 0;
+    let totQty = 0;
 
-    if (len > 0 && wid > 0 && hgt > 0 && qty > 0) {
-      
-      // 1. Convert everything to Meters
-      let l_m = 0, w_m = 0, h_m = 0;
+    items.forEach(item => {
+      // 1. Normalize Dimensions to Meters
+      let l_m = item.length, w_m = item.width, h_m = item.height;
       
       if (unit === 'cm') {
-        l_m = len / 100;
-        w_m = wid / 100;
-        h_m = hgt / 100;
+        l_m /= 100; w_m /= 100; h_m /= 100;
       } else {
-        // Inch to Meter (1 inch = 0.0254 m)
-        l_m = len * 0.0254;
-        w_m = wid * 0.0254;
-        h_m = hgt * 0.0254;
+        // Inch to Meter
+        l_m *= 0.0254; w_m *= 0.0254; h_m *= 0.0254;
       }
 
-      // 2. Calculate CBM per carton & Total
       const cbmPerCarton = l_m * w_m * h_m;
-      const totalVol = cbmPerCarton * qty;
+      const totalItemCbm = cbmPerCarton * item.qty;
       
-      // 3. Volumetric Weight (Air Freight Standard: Divisor 6000 or 5000)
-      // Standard Air Formula: (L*W*H in cm) / 6000 * Qty
-      // Or CBM * 167
-      const volWeightAir = totalVol * 167; // approx kg per cbm standard
+      // Volumetric Weight (Air Standard 1:6000)
+      // Formula: CBM * 166.67
+      const volWeight = totalItemCbm * 166.67;
 
-      setTotalCbm(totalVol);
-      setTotalWeight(wgt * qty);
-      setTotalVolumetric(volWeightAir);
+      totCbm += totalItemCbm;
+      totGw += item.weight * item.qty;
+      totVol += volWeight;
+      totQty += item.qty;
+    });
 
-    } else {
-      setTotalCbm(0);
-      setTotalWeight(0);
-      setTotalVolumetric(0);
-    }
-  }, [length, width, height, cartonCount, cartonWeight, unit]);
+    // Container Logic
+    const container = CONTAINERS.find(c => c.name === selectedContainer) || CONTAINERS[0];
+    const volUtil = (totCbm / container.cbm) * 100;
+    const wtUtil = (totGw / container.maxWeight) * 100;
 
-  // Container Capacities (approx safe load)
-  const CONT_20 = 28; // 28 CBM
-  const CONT_40 = 58; // 58 CBM
-  const CONT_40HQ = 68; // 68 CBM
+    setMetrics({
+      totalCbm: totCbm,
+      totalGrossWeight: totGw,
+      totalVolumetricWeight: totVol,
+      totalCartons: totQty,
+      utilization: volUtil,
+      weightUtilization: wtUtil
+    });
 
-  const getContainerPercent = (max: number) => {
-    return Math.min((totalCbm / max) * 100, 100);
+  }, [items, unit, selectedContainer]);
+
+  // --- ACTIONS ---
+  const addItem = () => {
+    setItems([...items, { 
+      id: Date.now(), 
+      name: `Carton ${items.length + 1}`, 
+      length: 0, width: 0, height: 0, weight: 0, qty: 0 
+    }]);
+  };
+
+  const removeItem = (id: number) => {
+    if (items.length > 1) setItems(items.filter(i => i.id !== id));
+  };
+
+  const updateItem = (id: number, field: keyof CargoItem, val: any) => {
+    setItems(items.map(i => i.id === id ? { ...i, [field]: val } : i));
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-8">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            CBM & Container Planner
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Calculate cubic volume for shipping and check container fit.
-          </p>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Container className="w-8 h-8 text-blue-500" />
+              Logistics Optimization Engine
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Multi-SKU CBM Calculator & Container Load Planner.
+            </p>
+          </div>
+          <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800">
+             <button 
+                onClick={() => setUnit('cm')}
+                className={`px-4 py-2 text-sm font-medium rounded ${unit === 'cm' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+             >
+                Metric (cm / kg)
+             </button>
+             <button 
+                onClick={() => setUnit('inch')}
+                className={`px-4 py-2 text-sm font-medium rounded ${unit === 'inch' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+             >
+                Imperial (in / kg)
+             </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
           
-          {/* INPUTS */}
-          <div className="space-y-6">
+          {/* --- LEFT: MANIFEST BUILDER (7 Cols) --- */}
+          <div className="lg:col-span-7 space-y-6">
             
-            <div className="flex justify-end">
-               <div className="bg-gray-100 p-1 rounded-lg flex text-xs font-bold">
-                 <button onClick={() => setUnit('cm')} className={`px-3 py-1 rounded ${unit === 'cm' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>CM</button>
-                 <button onClick={() => setUnit('inch')} className={`px-3 py-1 rounded ${unit === 'inch' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Inches</button>
+            <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+               <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                     <PackageCheck className="w-4 h-4 text-blue-400" /> Shipment Manifest
+                  </h3>
+                  <button onClick={addItem} className="text-xs flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-full transition">
+                     <Plus className="w-3 h-3" /> Add Carton Type
+                  </button>
                </div>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-              <h3 className="font-bold text-slate-700 text-sm mb-3">Single Carton Details</h3>
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <input type="number" placeholder={`L (${unit})`} className="p-2 rounded border" value={length} onChange={e => setLength(Number(e.target.value))} />
-                <input type="number" placeholder={`W (${unit})`} className="p-2 rounded border" value={width} onChange={e => setWidth(Number(e.target.value))} />
-                <input type="number" placeholder={`H (${unit})`} className="p-2 rounded border" value={height} onChange={e => setHeight(Number(e.target.value))} />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                 <div>
-                   <label className="text-xs font-bold text-gray-500">Total Cartons</label>
-                   <input type="number" className="w-full p-2 rounded border" value={cartonCount} onChange={e => setCartonCount(Number(e.target.value))} />
-                 </div>
-                 <div>
-                   <label className="text-xs font-bold text-gray-500">Weight/Carton (kg)</label>
-                   <input type="number" className="w-full p-2 rounded border" value={cartonWeight} onChange={e => setCartonWeight(Number(e.target.value))} />
-                 </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* RESULTS */}
-          <div className="flex flex-col space-y-6">
-            
-            <div className="bg-blue-600 text-white p-6 rounded-xl shadow-lg text-center">
-              <p className="text-xs text-blue-200 uppercase tracking-widest mb-2">Total Shipment Volume</p>
-              <div className="text-5xl font-extrabold flex items-baseline justify-center">
-                 {totalCbm.toFixed(3)} <span className="text-lg ml-2">m³</span>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 mt-6 border-t border-blue-400/50 pt-4">
-                <div>
-                   <p className="text-xs text-blue-200">Gross Weight</p>
-                   <p className="font-bold text-xl">{totalWeight} kg</p>
-                </div>
-                <div>
-                   <p className="text-xs text-blue-200">Volumetric (Air)</p>
-                   <p className="font-bold text-xl">{totalVolumetric.toFixed(1)} kg</p>
-                </div>
-              </div>
-            </div>
-
-            {/* CONTAINER VISUALIZATION */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-               <h4 className="font-bold text-gray-700 text-sm">Container Fit</h4>
                
-               {/* 20ft */}
-               <div>
-                 <div className="flex justify-between text-xs mb-1">
-                   <span>20ft Container (28 cbm)</span>
-                   <span className={totalCbm > CONT_20 ? 'text-red-500 font-bold' : 'text-gray-500'}>{getContainerPercent(CONT_20).toFixed(1)}% Full</span>
-                 </div>
-                 <div className="w-full bg-gray-200 rounded-full h-2">
-                   <div className={`h-2 rounded-full ${totalCbm > CONT_20 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${getContainerPercent(CONT_20)}%` }}></div>
-                 </div>
+               <div className="p-4 space-y-3">
+                  {items.map((item, i) => (
+                     <div key={item.id} className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex flex-col md:flex-row gap-4 items-start md:items-center group">
+                        <div className="w-full md:w-48">
+                           <div className="flex justify-between text-xs text-slate-500 mb-1">
+                              <span>Carton Name / SKU</span>
+                              <span className="group-hover:text-red-400 cursor-pointer md:hidden" onClick={() => removeItem(item.id)}><Trash2 className="w-3 h-3" /></span>
+                           </div>
+                           <input type="text" value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm focus:border-blue-500 outline-none text-white" />
+                        </div>
+                        
+                        <div className="grid grid-cols-5 gap-2 flex-1">
+                           <div>
+                              <label className="text-[10px] text-slate-500 block mb-1">L</label>
+                              <input type="number" value={item.length} onChange={e => updateItem(item.id, 'length', Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-sm outline-none text-white text-center" />
+                           </div>
+                           <div>
+                              <label className="text-[10px] text-slate-500 block mb-1">W</label>
+                              <input type="number" value={item.width} onChange={e => updateItem(item.id, 'width', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-sm outline-none text-white text-center" />
+                           </div>
+                           <div>
+                              <label className="text-[10px] text-slate-500 block mb-1">H</label>
+                              <input type="number" value={item.height} onChange={e => updateItem(item.id, 'height', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-sm outline-none text-white text-center" />
+                           </div>
+                           <div>
+                              <label className="text-[10px] text-slate-500 block mb-1">Kg/Box</label>
+                              <input type="number" value={item.weight} onChange={e => updateItem(item.id, 'weight', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-sm outline-none text-white text-center" />
+                           </div>
+                           <div>
+                              <label className="text-[10px] text-blue-400 font-bold block mb-1">Qty</label>
+                              <input type="number" value={item.qty} onChange={e => updateItem(item.id, 'qty', Number(e.target.value))} className="w-full bg-blue-900/20 border border-blue-800 rounded p-1.5 text-sm outline-none text-white font-bold text-center" />
+                           </div>
+                        </div>
+                        <button onClick={() => removeItem(item.id)} className="hidden md:block text-slate-600 hover:text-red-400 p-2"><Trash2 className="w-4 h-4" /></button>
+                     </div>
+                  ))}
                </div>
+            </div>
 
-               {/* 40ft */}
-               <div>
-                 <div className="flex justify-between text-xs mb-1">
-                   <span>40ft Container (58 cbm)</span>
-                   <span className={totalCbm > CONT_40 ? 'text-red-500 font-bold' : 'text-gray-500'}>{getContainerPercent(CONT_40).toFixed(1)}% Full</span>
-                 </div>
-                 <div className="w-full bg-gray-200 rounded-full h-2">
-                   <div className={`h-2 rounded-full ${totalCbm > CONT_40 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${getContainerPercent(CONT_40)}%` }}></div>
-                 </div>
+            {/* Container Selector */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="font-bold text-white text-sm mb-4 flex items-center gap-2">
+                  <Settings className="w-4 h-4 text-slate-400" /> Target Container
+               </h3>
+               <div className="grid grid-cols-3 gap-3">
+                  {CONTAINERS.map(c => (
+                     <button 
+                        key={c.name}
+                        onClick={() => setSelectedContainer(c.name)}
+                        className={`p-3 rounded-lg border text-left transition-all ${selectedContainer === c.name ? 'bg-blue-900/20 border-blue-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-600'}`}
+                     >
+                        <div className="text-xs font-bold mb-1">{c.name}</div>
+                        <div className="text-[10px] opacity-70">Cap: {c.cbm} m³</div>
+                     </button>
+                  ))}
                </div>
-
             </div>
 
           </div>
 
-        </div>
-      </div>
+          {/* --- RIGHT: ANALYTICS (5 Cols) --- */}
+          <div className="lg:col-span-5 space-y-6">
+            
+            {/* 1. Master Output */}
+            <div className="bg-gradient-to-br from-blue-900 to-slate-900 rounded-2xl p-8 shadow-2xl border border-blue-800/50 relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <Anchor className="w-32 h-32 text-white" />
+               </div>
+               
+               <div className="relative z-10">
+                  <p className="text-blue-300 text-xs font-bold uppercase tracking-widest mb-2">Total Shipment Volume</p>
+                  <div className="flex items-baseline gap-2">
+                     <span className="text-6xl font-extrabold text-white">{metrics.totalCbm.toFixed(2)}</span>
+                     <span className="text-xl text-blue-300">m³</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-8 mt-8 border-t border-white/10 pt-6">
+                     <div>
+                        <div className="flex items-center gap-2 text-blue-300 text-xs font-bold uppercase mb-1">
+                           <Scale className="w-4 h-4" /> Gross Weight
+                        </div>
+                        <p className="text-2xl font-bold text-white">{metrics.totalGrossWeight} <span className="text-sm">kg</span></p>
+                     </div>
+                     <div>
+                        <div className="flex items-center gap-2 text-blue-300 text-xs font-bold uppercase mb-1">
+                           <Truck className="w-4 h-4" /> Volumetric (Air)
+                        </div>
+                        <p className="text-2xl font-bold text-white">{metrics.totalVolumetricWeight.toFixed(0)} <span className="text-sm">kg</span></p>
+                     </div>
+                  </div>
+               </div>
+            </div>
 
-      <div className="mt-8 text-center text-gray-400 text-sm">
-        Created by SmartRwl
+            {/* 2. Load Meter */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+               <div className="flex justify-between items-end mb-4">
+                  <div>
+                     <h3 className="text-sm font-bold text-white">Container Utilization</h3>
+                     <p className="text-xs text-slate-500 mt-1">{selectedContainer} Capacity</p>
+                  </div>
+                  <div className={`text-2xl font-bold ${metrics.utilization > 100 ? 'text-red-400' : metrics.utilization > 85 ? 'text-emerald-400' : 'text-blue-400'}`}>
+                     {metrics.utilization.toFixed(1)}%
+                  </div>
+               </div>
+               
+               {/* Visual Bar */}
+               <div className="h-4 w-full bg-slate-950 rounded-full border border-slate-800 overflow-hidden relative">
+                  <div 
+                     className={`h-full transition-all duration-700 ${metrics.utilization > 100 ? 'bg-red-500' : metrics.utilization > 90 ? 'bg-emerald-500' : 'bg-blue-500'}`} 
+                     style={{ width: `${Math.min(metrics.utilization, 100)}%` }}
+                  ></div>
+                  {/* Marker for "Safe Full" */}
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-white/20" style={{ left: '90%' }}></div>
+               </div>
+               
+               <div className="mt-4 flex gap-3 text-xs">
+                  {metrics.utilization > 100 ? (
+                     <div className="flex-1 bg-red-900/20 border border-red-900/50 p-2 rounded text-red-300">
+                        ⚠ <b>Overloaded!</b> You need {Math.ceil(metrics.utilization / 100)} containers or remove items.
+                     </div>
+                  ) : metrics.utilization < 70 ? (
+                     <div className="flex-1 bg-blue-900/20 border border-blue-900/50 p-2 rounded text-blue-300">
+                        ℹ <b>Underutilized.</b> You are paying for air. Add more stock to lower per-unit shipping cost.
+                     </div>
+                  ) : (
+                     <div className="flex-1 bg-emerald-900/20 border border-emerald-900/50 p-2 rounded text-emerald-300">
+                        ✓ <b>Optimal Load.</b> Container is filled efficiently.
+                     </div>
+                  )}
+               </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-blue-500" />
+              Optimization Guide
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-blue-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <BarChart3 className="w-5 h-5 text-blue-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Why calculate CBM?</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Freight forwarders charge by CBM (Volume) for LCL sea shipments. For FCL (Full Container), you pay a fixed price for the container. 
+                    <br/><br/>
+                    <b>Goal:</b> Fill the container to 90%+ to get the cheapest shipping cost per unit.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-orange-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Truck className="w-5 h-5 text-orange-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Air vs Sea</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Check the <b>Volumetric Weight</b> output. 
+                    <br/>
+                    Air freight charges the higher of Actual Weight vs Volumetric. Sea freight mostly cares about CBM.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Info className="w-5 h-5 text-emerald-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Container Tips</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    A "20ft Container" technically has 33 CBM, but you can rarely load more than <b>28 CBM</b> due to carton stacking gaps and pallet usage.
+                    <br/>
+                    Always leave 10-15% buffer.
+                 </p>
+              </div>
+
+           </div>
+        </div>
+
       </div>
     </div>
   );
