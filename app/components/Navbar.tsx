@@ -47,6 +47,26 @@ export default function Navbar() {
                 <MenuLink href="/influencer-roi" title="Influencer ROI" desc="Campaign tracker" />
                 <MenuLink href="/price-matcher" title="Price Match" desc="Competitor analysis" />
                 <MenuLink href="/bundle-calculator" title="Bundle Profit" desc="Kit profitability" />
+                <MenuLink href="/storage-fee-planner" title="Storage Fee Planner" desc="Storage Fee Planner" />
+              </div>
+            </Dropdown>
+
+            {/* Nav Item: Finance */}
+            <Dropdown 
+              title="Finance" 
+              icon={<BanknotesIcon />}
+            >
+              <div className="w-56 p-2 space-y-1">
+                <MenuLink href="/profit-calculator" title="Profit Calculator" />
+                <MenuLink href="/packaging-cost" title="Packaging Cost Calc" />
+                <MenuLink href="/fba-vs-fbm" title="FBA vs FBM Calc" />
+                
+                {/* --- NEW LINK HERE --- */}
+                <MenuLink href="/ltsf-calculator" title="LTSF Fee Calculator" />
+                
+                <MenuLink href="/target-price" title="Target Price Finder" />
+                <MenuLink href="/landed-cost" title="Import Landed Cost" />
+                <MenuLink href="/bundle-profit" title="Bundle Profit Calc" />
               </div>
             </Dropdown>
 
