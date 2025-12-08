@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import Barcode from 'react-barcode';
 
 export default function BarcodeGenerator() {
@@ -53,12 +53,13 @@ export default function BarcodeGenerator() {
           {showGuide && (
             <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-2 bg-blue-50/50">
               <p><strong>1. Enter Data:</strong> Paste your Amazon FNSKU (starts with X0...) or your Product SKU.</p>
-              <p><strong>2. Select Format:</strong> 
+              <div>
+                <strong>2. Select Format:</strong> 
                 <ul className="list-disc list-inside ml-2">
                   <li><strong>CODE128:</strong> (Standard) Best for alphanumeric SKUs and Amazon FNSKU.</li>
                   <li><strong>UPC/EAN:</strong> Use only if you are printing official retail barcodes (Numbers only).</li>
                 </ul>
-              </p>
+              </div>
               <p><strong>3. Customize:</strong> Adjust width/height to fit your sticker paper.</p>
               <p><strong>4. Print:</strong> Click Print to open a clean window for printing on sticky labels.</p>
             </div>
@@ -144,7 +145,7 @@ export default function BarcodeGenerator() {
             <div id="barcode-area" className="bg-white p-4">
               <Barcode 
                 value={text}
-                format={format}
+                format={format as any} 
                 width={width}
                 height={height}
                 displayValue={showText}
