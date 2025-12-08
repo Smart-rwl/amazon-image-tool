@@ -1,237 +1,313 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { 
+  Calculator, 
+  TrendingUp, 
+  AlertTriangle, 
+  Info, 
+  DollarSign, 
+  Box, 
+  RefreshCw, 
+  Target 
+} from 'lucide-react';
 
-export default function ProfitCalculator() {
-  // --- EXISTING INPUTS (Profit Calc) ---
-  const [sellingPrice, setSellingPrice] = useState<number | ''>('');
-  const [productCost, setProductCost] = useState<number | ''>('');
-  const [platformFees, setPlatformFees] = useState<number | ''>('');
-  const [shippingCost, setShippingCost] = useState<number | ''>('');
-  const [adsCost, setAdsCost] = useState<number | ''>('');
+export default function AdvancedProfitCalculator() {
+  // --- STATE ---
+  
+  // 1. Revenue & Product
+  const [sellingPrice, setSellingPrice] = useState<number>(2000);
+  const [productCost, setProductCost] = useState<number>(600);
+  
+  // 2. Platform & Taxes
+  const [platformFees, setPlatformFees] = useState<number>(300); // Referral + Closing
   const [gstRate, setGstRate] = useState<number>(18);
   const [gstMode, setGstMode] = useState<'inclusive' | 'exclusive'>('inclusive');
   
-  // --- NEW INPUTS (RTO Calc) ---
-  const [returnShipping, setReturnShipping] = useState<number | ''>('');
-  const [packaging, setPackaging] = useState<number | ''>('');
-  const [returnRate, setReturnRate] = useState<number>(15); // Avg market return rate
-  const [damageRate, setDamageRate] = useState<number>(0);  // % of returns that are damaged
+  // 3. Logistics & Marketing
+  const [shippingCost, setShippingCost] = useState<number>(80);
+  const [adsCost, setAdsCost] = useState<number>(200); // CPA (Cost Per Acquisition)
+  
+  // 4. Risk Factors (RTO)
+  const [returnShipping, setReturnShipping] = useState<number>(120); // Often 1.5x of forward
+  const [packaging, setPackaging] = useState<number>(20);
+  const [returnRate, setReturnRate] = useState<number>(15); // % of orders returned
+  const [damageRate, setDamageRate] = useState<number>(5);  // % of returns damaged
 
   // --- OUTPUTS ---
-  const [netProfit, setNetProfit] = useState<number>(0);
-  const [margin, setMargin] = useState<number>(0);
-  const [roi, setRoi] = useState<number>(0);
-  const [gstAmount, setGstAmount] = useState<number>(0);
-  
-  // RTO Outputs
-  const [lossPerReturn, setLossPerReturn] = useState<number>(0);
-  const [weightedProfit, setWeightedProfit] = useState<number>(0);
+  const [metrics, setMetrics] = useState({
+    gstAmount: 0,
+    netProfit: 0,
+    margin: 0,
+    roi: 0,
+    lossPerReturn: 0,
+    weightedProfit: 0,
+    breakEvenROAS: 0,
+    status: 'neutral' as 'profitable' | 'loss' | 'neutral'
+  });
 
   useEffect(() => {
-    // 1. Basic Conversions
-    const sp = Number(sellingPrice) || 0;
-    const cp = Number(productCost) || 0;
-    const fees = Number(platformFees) || 0;
-    const fwdShip = Number(shippingCost) || 0;
-    const ads = Number(adsCost) || 0;
-    const revShip = Number(returnShipping) || (fwdShip * 1.5); // Default estimation
-    const pack = Number(packaging) || 0;
-
-    // 2. GST Logic (Base Revenue)
-    let baseRevenue = 0;
+    // A. GST Calculation
+    let basePrice = 0;
     let taxAmt = 0;
-    let customerPays = 0;
+    let finalCustomerPrice = 0;
 
     if (gstMode === 'inclusive') {
-      baseRevenue = sp / (1 + gstRate / 100);
-      taxAmt = sp - baseRevenue;
-      customerPays = sp;
+      basePrice = sellingPrice / (1 + gstRate / 100);
+      taxAmt = sellingPrice - basePrice;
+      finalCustomerPrice = sellingPrice;
     } else {
-      baseRevenue = sp;
-      taxAmt = sp * (gstRate / 100);
-      customerPays = sp + taxAmt;
+      basePrice = sellingPrice;
+      taxAmt = sellingPrice * (gstRate / 100);
+      finalCustomerPrice = sellingPrice + taxAmt;
     }
 
-    setGstAmount(taxAmt);
+    // B. Successful Order Economics
+    const totalCostOfSale = productCost + platformFees + shippingCost + adsCost + packaging;
+    const profitOnSuccess = basePrice - totalCostOfSale;
 
-    // 3. SUCCESSFUL ORDER Logic
-    const totalSaleCost = cp + fees + fwdShip + ads + pack; 
-    const profitOnSale = baseRevenue - totalSaleCost;
+    // C. Return (RTO) Economics
+    // Loss = Shipping (Fwd+Rev) + Packaging + Ads + Damaged Product Cost
+    // Note: We assume Platform Fees are refunded by Amazon/Flipkart on return (mostly)
+    const damagedValue = productCost * (damageRate / 100);
+    const lossOnReturn = shippingCost + returnShipping + packaging + adsCost + damagedValue;
+
+    // D. Weighted Average (The Reality)
+    const successCount = 100 - returnRate;
+    const returnCount = returnRate;
     
-    setNetProfit(profitOnSale);
-    setMargin(customerPays > 0 ? (profitOnSale / customerPays) * 100 : 0);
-    setRoi(cp > 0 ? (profitOnSale / cp) * 100 : 0);
+    // (90 orders * Profit) - (10 orders * Loss)
+    const totalBatchProfit = (successCount * profitOnSuccess) - (returnCount * lossOnReturn);
+    const weightedProfitPerUnit = totalBatchProfit / 100;
 
-    // 4. RETURN / RTO ORDER Logic
-    // Loss = Fwd Ship + Rev Ship + Packing + Damage Cost + Ads (Ads are spent regardless)
-    // Note: Platform fees are usually refunded by Amazon/Flipkart on return (except closing fee), 
-    // but let's assume they are 0 for simple RTO calculation.
-    const damagedValue = cp * (damageRate / 100);
-    const lossOnReturn = fwdShip + revShip + pack + ads + damagedValue;
-    setLossPerReturn(lossOnReturn);
-
-    // 5. WEIGHTED PROFIT (The "Real" Business Profit)
-    // If you sell 100 items: 
-    // - (100 - ReturnRate) are Sales.
-    // - (ReturnRate) are Losses.
-    const successfulOrders = 100 - returnRate;
-    const failedOrders = returnRate;
-
-    const totalGain = (successfulOrders * profitOnSale) - (failedOrders * lossOnReturn);
-    const avgProfitPerUnit = totalGain / 100;
+    // E. Advanced Metrics
+    const margin = finalCustomerPrice > 0 ? (profitOnSuccess / finalCustomerPrice) * 100 : 0;
+    const roi = productCost > 0 ? (weightedProfitPerUnit / productCost) * 100 : 0;
     
-    setWeightedProfit(avgProfitPerUnit);
+    // Break Even ROAS (Return On Ad Spend)
+    // How much revenue you need per 1 rupee of ad spend to not lose money
+    const grossMargin = basePrice - (productCost + platformFees + shippingCost + packaging);
+    const breakEvenROAS = adsCost > 0 ? finalCustomerPrice / adsCost : 0; 
+
+    setMetrics({
+      gstAmount: taxAmt,
+      netProfit: profitOnSuccess,
+      margin,
+      roi,
+      lossPerReturn: lossOnReturn,
+      weightedProfit: weightedProfitPerUnit,
+      breakEvenROAS,
+      status: weightedProfitPerUnit > 0 ? 'profitable' : 'loss'
+    });
 
   }, [sellingPrice, productCost, platformFees, shippingCost, adsCost, gstRate, gstMode, returnShipping, packaging, returnRate, damageRate]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans text-slate-900">
+      <div className="max-w-7xl mx-auto">
         
-        {/* === LEFT COLUMN: INPUTS (Span 7) === */}
-        <div className="lg:col-span-7 space-y-6">
-          
-          {/* Section 1: Sale Details */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-              <span className="bg-blue-100 text-blue-600 p-1 rounded mr-2 text-xs">STEP 1</span>
-              Sale Details
-            </h2>
-            
-            {/* GST Toggle */}
-            <div className="mb-4">
-              <div className="flex bg-gray-100 p-1 rounded-lg">
-                <button onClick={() => setGstMode('inclusive')} className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${gstMode === 'inclusive' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'}`}>Inclusive (Price includes Tax)</button>
-                <button onClick={() => setGstMode('exclusive')} className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${gstMode === 'exclusive' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}>Exclusive (Tax added on top)</button>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <div className="p-2 bg-blue-600 rounded-lg text-white">
+                <Calculator className="w-6 h-6" />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price</label>
-                <input type="number" className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500" value={sellingPrice} onChange={(e) => setSellingPrice(Number(e.target.value))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Product Cost</label>
-                <input type="number" className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500" value={productCost} onChange={(e) => setProductCost(Number(e.target.value))} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 mt-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Platform Fees</label>
-                <input type="number" className="w-full p-2 border border-gray-300 rounded" value={platformFees} onChange={(e) => setPlatformFees(Number(e.target.value))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Shipping (Fwd)</label>
-                <input type="number" className="w-full p-2 border border-gray-300 rounded" value={shippingCost} onChange={(e) => setShippingCost(Number(e.target.value))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">GST Rate (%)</label>
-                <select className="w-full p-2 border border-gray-300 rounded bg-white" value={gstRate} onChange={(e) => setGstRate(Number(e.target.value))}>
-                  <option value={5}>5%</option>
-                  <option value={12}>12%</option>
-                  <option value={18}>18%</option>
-                  <option value={28}>28%</option>
-                </select>
-              </div>
-            </div>
+              Profit Intelligence Engine
+            </h1>
+            <p className="text-slate-500 mt-1">Advanced unit economics & risk simulator for Amazon/Flipkart.</p>
           </div>
+          <div className="flex gap-2 text-sm font-medium">
+             <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-slate-600 flex items-center gap-1">
+                <Target className="w-4 h-4" /> Est. ROAS: {metrics.breakEvenROAS.toFixed(1)}X
+             </span>
+             <span className={`px-3 py-1 rounded-full border flex items-center gap-1 ${metrics.status === 'profitable' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                {metrics.status === 'profitable' ? 'Profitable Strategy' : 'Strategy Loss Making'}
+             </span>
+          </div>
+        </div>
 
-          {/* Section 2: Return Risks */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-              <span className="bg-red-100 text-red-600 p-1 rounded mr-2 text-xs">STEP 2</span>
-              Return Risks
-            </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* --- LEFT: INPUTS (8 Cols) --- */}
+          <div className="lg:col-span-8 space-y-6">
             
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Return Shipping</label>
-                <input type="number" className="w-full p-2 border border-gray-300 rounded" placeholder="Usually 1.5x Fwd" value={returnShipping} onChange={(e) => setReturnShipping(Number(e.target.value))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Packaging Cost</label>
-                <input type="number" className="w-full p-2 border border-gray-300 rounded" value={packaging} onChange={(e) => setPackaging(Number(e.target.value))} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Estimated Return Rate (%)</label>
-                <div className="flex items-center space-x-2">
-                  <input type="range" min="0" max="50" className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" value={returnRate} onChange={(e) => setReturnRate(Number(e.target.value))} />
-                  <span className="text-sm font-bold w-8">{returnRate}%</span>
+            {/* SECTION 1: Product & Revenue */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                <h2 className="font-semibold text-slate-800 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-blue-500" />
+                  Revenue & Costs
+                </h2>
+                <div className="flex bg-white rounded-lg border border-slate-200 p-1">
+                  <button onClick={() => setGstMode('inclusive')} className={`px-3 py-1 text-xs font-medium rounded ${gstMode === 'inclusive' ? 'bg-blue-100 text-blue-700' : 'text-slate-500'}`}>GST Inclusive</button>
+                  <button onClick={() => setGstMode('exclusive')} className={`px-3 py-1 text-xs font-medium rounded ${gstMode === 'exclusive' ? 'bg-blue-100 text-blue-700' : 'text-slate-500'}`}>Exclusive</button>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Ads Cost per Unit</label>
-                <input type="number" className="w-full p-2 border border-gray-300 rounded" value={adsCost} onChange={(e) => setAdsCost(Number(e.target.value))} />
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Selling Price</label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-slate-500 sm:text-sm">₹</span>
+                    </div>
+                    <input type="number" value={sellingPrice} onChange={e => setSellingPrice(Number(e.target.value))} className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 py-2 sm:text-sm border-slate-300 rounded-md border" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Product Cost (Landed)</label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-slate-500 sm:text-sm">₹</span>
+                    </div>
+                    <input type="number" value={productCost} onChange={e => setProductCost(Number(e.target.value))} className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 py-2 sm:text-sm border-slate-300 rounded-md border" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Platform Fees</label>
+                  <input type="number" value={platformFees} onChange={e => setPlatformFees(Number(e.target.value))} className="mt-1 block w-full py-2 px-3 border border-slate-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                  <p className="text-[10px] text-slate-400 mt-1">Referral + Closing Fees</p>
+                </div>
+                <div>
+                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">GST Rate</label>
+                   <select value={gstRate} onChange={e => setGstRate(Number(e.target.value))} className="mt-1 block w-full py-2 px-3 border border-slate-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                      <option value={5}>5%</option>
+                      <option value={12}>12%</option>
+                      <option value={18}>18%</option>
+                      <option value={28}>28%</option>
+                   </select>
+                </div>
               </div>
+            </div>
+
+            {/* SECTION 2: Logistics & Marketing */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                   <h2 className="font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                      <Box className="w-4 h-4 text-orange-500" /> Logistics
+                   </h2>
+                   <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Forward Shipping</label>
+                        <input type="number" value={shippingCost} onChange={e => setShippingCost(Number(e.target.value))} className="mt-1 block w-full border-slate-300 rounded-md border px-3 py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Packaging Material</label>
+                        <input type="number" value={packaging} onChange={e => setPackaging(Number(e.target.value))} className="mt-1 block w-full border-slate-300 rounded-md border px-3 py-2 text-sm" />
+                      </div>
+                   </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                   <h2 className="font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                      <TrendingUp className="w-4 h-4 text-green-500" /> Marketing (Ads)
+                   </h2>
+                   <div>
+                        <label className="text-xs font-medium text-slate-500">Cost Per Acquisition (CPA)</label>
+                        <input type="number" value={adsCost} onChange={e => setAdsCost(Number(e.target.value))} className="mt-1 block w-full border-slate-300 rounded-md border px-3 py-2 text-sm" />
+                        <p className="text-[10px] text-slate-400 mt-1">Average ad spend to get 1 sale</p>
+                   </div>
+                </div>
+            </div>
+
+            {/* SECTION 3: Risk (RTO) */}
+            <div className="bg-red-50/50 rounded-xl shadow-sm border border-red-100 p-6">
+                <h2 className="font-semibold text-red-800 flex items-center gap-2 mb-4">
+                   <RefreshCw className="w-4 h-4" /> Returns & RTO Simulation
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className="text-xs font-medium text-red-700">Return Rate (%)</label>
+                        <div className="flex items-center gap-3 mt-2">
+                           <input type="range" min="0" max="40" value={returnRate} onChange={e => setReturnRate(Number(e.target.value))} className="w-full accent-red-600" />
+                           <span className="font-bold text-red-700 w-8">{returnRate}%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-red-700">Return Shipping Cost</label>
+                        <input type="number" value={returnShipping} onChange={e => setReturnShipping(Number(e.target.value))} className="mt-1 block w-full border-red-200 bg-white rounded-md border px-3 py-2 text-sm focus:ring-red-500 focus:border-red-500" />
+                    </div>
+                     <div>
+                        <label className="text-xs font-medium text-red-700">Damage Rate (%)</label>
+                         <div className="flex items-center gap-3 mt-2">
+                           <input type="range" min="0" max="100" value={damageRate} onChange={e => setDamageRate(Number(e.target.value))} className="w-full accent-red-600" />
+                           <span className="font-bold text-red-700 w-8">{damageRate}%</span>
+                        </div>
+                        <p className="text-[10px] text-red-400 mt-1">% of returns unsellable</p>
+                    </div>
+                </div>
             </div>
           </div>
 
+          {/* --- RIGHT: RESULTS DASHBOARD (4 Cols) --- */}
+          <div className="lg:col-span-4 space-y-4">
+             
+             {/* Main Result Card */}
+             <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl sticky top-6">
+                <div className="mb-6">
+                   <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest">Weighted Net Profit</p>
+                   <div className="flex items-baseline gap-1 mt-1">
+                      <span className={`text-4xl font-bold ${metrics.weightedProfit > 0 ? 'text-white' : 'text-red-400'}`}>
+                         ₹{metrics.weightedProfit.toFixed(1)}
+                      </span>
+                      <span className="text-slate-400 text-sm">/ unit</span>
+                   </div>
+                   <p className="text-xs text-slate-500 mt-2">
+                      Adjusted for {returnRate}% returns
+                   </p>
+                </div>
+
+                <div className="space-y-3 pt-6 border-t border-slate-800">
+                    <div className="flex justify-between text-sm">
+                       <span className="text-slate-400">Profit on Success</span>
+                       <span className="text-green-400 font-mono">+₹{metrics.netProfit.toFixed(1)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                       <span className="text-slate-400">Loss on Return</span>
+                       <span className="text-red-400 font-mono">-₹{metrics.lossPerReturn.toFixed(1)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                       <span className="text-slate-400">GST Payable</span>
+                       <span className="text-white font-mono">₹{metrics.gstAmount.toFixed(1)}</span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-6">
+                   <div className="bg-slate-800 p-3 rounded-lg text-center">
+                      <div className="text-xs text-slate-400 mb-1">ROI</div>
+                      <div className="font-bold text-blue-400">{metrics.roi.toFixed(1)}%</div>
+                   </div>
+                   <div className="bg-slate-800 p-3 rounded-lg text-center">
+                      <div className="text-xs text-slate-400 mb-1">Margin</div>
+                      <div className="font-bold text-yellow-400">{metrics.margin.toFixed(1)}%</div>
+                   </div>
+                </div>
+
+                {/* Warning Box */}
+                {metrics.weightedProfit < 0 && (
+                   <div className="mt-6 bg-red-500/10 border border-red-500/50 p-3 rounded-lg flex gap-3 items-start">
+                      <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+                      <p className="text-xs text-red-200 leading-relaxed">
+                         <span className="font-bold text-red-400 block mb-1">Critical Loss Warning</span>
+                         Your returns and ad costs are eating all profits. You must lower CPA or reduce Return Rate.
+                      </p>
+                   </div>
+                )}
+             </div>
+
+             {/* Info Panel */}
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                   <Info className="w-4 h-4" /> Did you know?
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                   A 15% return rate doesn't just mean 15% less sales. It means you pay shipping <b>twice</b> (Forward + Reverse) on those items, plus packaging loss. This calculator deducts those hidden losses from your successful sales.
+                </p>
+             </div>
+
+          </div>
         </div>
-
-        {/* === RIGHT COLUMN: RESULTS (Span 5) === */}
-        <div className="lg:col-span-5 space-y-4">
-          
-          {/* Card 1: Successful Sale */}
-          <div className="bg-slate-800 text-white p-5 rounded-xl shadow-lg">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-bold text-lg">Successful Sale</h3>
-              <span className="bg-green-500 text-xs px-2 py-1 rounded">Best Case</span>
-            </div>
-            <div className="flex justify-between items-baseline border-b border-slate-600 pb-4 mb-4">
-               <span className="text-slate-400 text-sm">Net Profit</span>
-               <span className={`text-3xl font-bold ${netProfit > 0 ? 'text-green-400' : 'text-red-400'}`}>₹{netProfit.toFixed(1)}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="bg-slate-700 p-2 rounded">
-                <div className="text-xs text-slate-400">Margin</div>
-                <div className="font-bold text-yellow-400">{margin.toFixed(1)}%</div>
-              </div>
-              <div className="bg-slate-700 p-2 rounded">
-                <div className="text-xs text-slate-400">ROI</div>
-                <div className="font-bold text-blue-400">{roi.toFixed(1)}%</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Return Loss */}
-          <div className="bg-white border-2 border-red-50 p-5 rounded-xl">
-             <div className="flex justify-between items-center mb-2">
-              <h3 className="font-bold text-lg text-gray-800">Return / RTO</h3>
-              <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded font-bold">Worst Case</span>
-            </div>
-            <div className="flex justify-between items-baseline">
-               <span className="text-gray-500 text-sm">Net Loss</span>
-               <span className="text-2xl font-bold text-red-600">-₹{lossPerReturn.toFixed(1)}</span>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">Includes Shipping (Both ways), Packing & Ads.</p>
-          </div>
-
-          {/* Card 3: REALITY */}
-          <div className="bg-blue-600 text-white p-6 rounded-xl shadow-lg transform scale-105 border-4 border-white">
-            <h3 className="text-sm font-bold uppercase opacity-80 mb-1">True Business Profit</h3>
-            <p className="text-xs opacity-75 mb-3">Weighted average considering {returnRate}% returns</p>
-            
-            <div className="flex items-baseline space-x-2">
-               <span className="text-4xl font-extrabold">₹{weightedProfit.toFixed(1)}</span>
-               <span className="text-sm">/ unit</span>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-blue-400/50 text-sm flex justify-between">
-               <span>GST to Pay:</span>
-               <span className="font-bold">₹{gstAmount.toFixed(1)}</span>
-            </div>
-          </div>
-
-        </div>
-
       </div>
-      <div className="mt-8 text-center text-gray-400 text-sm">Created by SmartRwl</div>
     </div>
   );
 }
