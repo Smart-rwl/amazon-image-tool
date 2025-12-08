@@ -73,7 +73,7 @@ export default function Navbar() {
             {/* 4. Operations */}
             <Dropdown title="Operations" icon={<CogIcon />}>
                <div className="w-56 p-2 space-y-1">
-                <MenuLink href="/inventory" title="Inventory Planner" />
+                <MenuLink href="/inventory-planner" title="Inventory Planner" />
                 <MenuLink href="/deal-planner" title="Discount Planner" />
                 <MenuLink href="/qr-generator" title="QR Generator" />
                 <MenuLink href="/cbm-calculator" title="CBM & Shipping" />
