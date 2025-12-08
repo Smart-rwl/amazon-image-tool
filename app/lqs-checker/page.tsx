@@ -1,193 +1,307 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { 
+  CheckCircle2, 
+  XCircle, 
+  Trophy, 
+  BarChart3, 
+  AlertTriangle, 
+  BookOpen,
+  Image as ImageIcon,
+  Type,
+  Video,
+  Star
+} from 'lucide-react';
 
-export default function LqsChecker() {
-  // Checklist States
-  const [hasTitleLen, setHasTitleLen] = useState(false);
-  const [hasImages, setHasImages] = useState(false);
-  const [hasWhiteBg, setHasWhiteBg] = useState(false);
-  const [hasBullets, setHasBullets] = useState(false);
-  const [hasDescription, setHasDescription] = useState(false);
-  const [hasBackend, setHasBackend] = useState(false);
-  const [hasVideo, setHasVideo] = useState(false);
-  const [hasReviews, setHasReviews] = useState(false);
-  const [isPrime, setIsPrime] = useState(false);
-  const [priceCompetitive, setPriceCompetitive] = useState(false);
+type AuditItem = {
+  id: string;
+  label: string;
+  weight: number;
+  category: 'content' | 'media' | 'reviews';
+  checked: boolean;
+  tip: string;
+};
 
+const INITIAL_ITEMS: AuditItem[] = [
+  { id: 'title', label: 'Title > 150 Characters', weight: 15, category: 'content', checked: false, tip: 'Use long-tail keywords for SEO visibility.' },
+  { id: 'bullets', label: '5+ Bullet Points', weight: 15, category: 'content', checked: false, tip: 'Highlight benefits, not just features.' },
+  { id: 'backend', label: 'Backend Search Terms Filled', weight: 10, category: 'content', checked: false, tip: 'Use the hidden 249 bytes wisely.' },
+  { id: 'images', label: '7+ Images Uploaded', weight: 15, category: 'media', checked: false, tip: 'Use all available slots.' },
+  { id: 'whitebg', label: 'Main Image White BG', weight: 5, category: 'media', checked: false, tip: 'Strict Amazon requirement.' },
+  { id: 'video', label: 'Product Video', weight: 10, category: 'media', checked: false, tip: 'Videos increase conversion by 20%.' },
+  { id: 'aplus', label: 'A+ Content (EBC)', weight: 10, category: 'media', checked: false, tip: 'Reduces bounce rate significantly.' },
+  { id: 'reviews', label: '4.0+ Star Rating', weight: 10, category: 'reviews', checked: false, tip: 'Social proof is critical.' },
+  { id: 'count', label: '15+ Reviews', weight: 5, category: 'reviews', checked: false, tip: 'Builds initial trust.' },
+  { id: 'prime', label: 'Prime Eligible', weight: 5, category: 'reviews', checked: false, tip: 'FBA listings rank higher.' },
+];
+
+export default function SmartListingAuditor() {
+  // --- STATE ---
+  const [items, setItems] = useState<AuditItem[]>(INITIAL_ITEMS);
   const [score, setScore] = useState(0);
   const [grade, setGrade] = useState('F');
-  const [color, setColor] = useState('text-red-600');
+  const [status, setStatus] = useState('Critical');
 
+  // --- ENGINE ---
   useEffect(() => {
-    // Weighted Scoring Logic
-    let calculated = 0;
-    
-    if (hasTitleLen) calculated += 15; // Title is critical
-    if (hasImages) calculated += 15;   // Images are critical
-    if (hasWhiteBg) calculated += 5;
-    if (hasBullets) calculated += 15;  // Bullets critical
-    if (hasDescription) calculated += 10;
-    if (hasBackend) calculated += 10;
-    if (hasVideo) calculated += 10;
-    if (hasReviews) calculated += 10;
-    if (isPrime) calculated += 5;
-    if (priceCompetitive) calculated += 5;
+    // 1. Calculate Score
+    const totalPoints = items.reduce((sum, item) => item.checked ? sum + item.weight : sum, 0);
+    setScore(totalPoints);
 
-    setScore(calculated);
+    // 2. Determine Grade
+    if (totalPoints >= 90) { setGrade('A+'); setStatus('Excellent'); }
+    else if (totalPoints >= 80) { setGrade('A'); setStatus('Great'); }
+    else if (totalPoints >= 70) { setGrade('B'); setStatus('Good'); }
+    else if (totalPoints >= 50) { setGrade('C'); setStatus('Average'); }
+    else { setGrade('D'); setStatus('Poor'); }
 
-    // Determine Grade
-    if (calculated >= 90) {
-      setGrade('A+');
-      setColor('text-green-600');
-    } else if (calculated >= 80) {
-      setGrade('A');
-      setColor('text-green-500');
-    } else if (calculated >= 70) {
-      setGrade('B');
-      setColor('text-blue-500');
-    } else if (calculated >= 50) {
-      setGrade('C');
-      setColor('text-yellow-500');
-    } else {
-      setGrade('D');
-      setColor('text-red-600');
-    }
+  }, [items]);
 
-  }, [hasTitleLen, hasImages, hasWhiteBg, hasBullets, hasDescription, hasBackend, hasVideo, hasReviews, isPrime, priceCompetitive]);
+  const toggleItem = (id: string) => {
+    setItems(items.map(i => i.id === id ? { ...i, checked: !i.checked } : i));
+  };
+
+  const getMissingItems = () => items.filter(i => !i.checked).sort((a,b) => b.weight - a.weight);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-5xl w-full bg-white p-8 rounded-xl shadow-lg space-y-8">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Listing Quality Auditor
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Check off what your listing has to see your Quality Score (LQS).
-          </p>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Trophy className="w-8 h-8 text-yellow-500" />
+              Listing Quality Auditor (LQS)
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Evaluate your Amazon listing against the top 10 ranking factors.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 text-sm text-slate-400">
+             <BarChart3 className="w-4 h-4 text-emerald-500" />
+             <span>Algorithm: Amazon A10 Weights</span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
           
-          {/* LEFT: CHECKLIST (Span 2) */}
-          <div className="lg:col-span-2 space-y-6">
-            <h3 className="font-bold text-gray-800 text-lg border-b pb-2">Listing Requirements</h3>
+          {/* --- LEFT: CHECKLIST (8 Cols) --- */}
+          <div className="lg:col-span-8 space-y-8">
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Item 1 */}
-              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${hasTitleLen ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'}`}>
-                <input type="checkbox" className="w-5 h-5 text-blue-600" checked={hasTitleLen} onChange={(e) => setHasTitleLen(e.target.checked)} />
-                <div className="ml-3">
-                  <span className="block font-medium text-gray-900">Title &gt; 150 Characters</span>
-                  <span className="block text-xs text-gray-500">Long tail keywords used?</span>
-                </div>
-              </label>
-
-              {/* Item 2 */}
-              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${hasImages ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'}`}>
-                <input type="checkbox" className="w-5 h-5 text-blue-600" checked={hasImages} onChange={(e) => setHasImages(e.target.checked)} />
-                <div className="ml-3">
-                  <span className="block font-medium text-gray-900">7+ Images Uploaded</span>
-                  <span className="block text-xs text-gray-500">Use all available slots?</span>
-                </div>
-              </label>
-
-              {/* Item 3 */}
-              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${hasBullets ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'}`}>
-                <input type="checkbox" className="w-5 h-5 text-blue-600" checked={hasBullets} onChange={(e) => setHasBullets(e.target.checked)} />
-                <div className="ml-3">
-                  <span className="block font-medium text-gray-900">5 Bullet Points</span>
-                  <span className="block text-xs text-gray-500">Full feature explanation?</span>
-                </div>
-              </label>
-
-              {/* Item 4 */}
-              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${hasDescription ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'}`}>
-                <input type="checkbox" className="w-5 h-5 text-blue-600" checked={hasDescription} onChange={(e) => setHasDescription(e.target.checked)} />
-                <div className="ml-3">
-                  <span className="block font-medium text-gray-900">A+ Content / Description</span>
-                  <span className="block text-xs text-gray-500">Images in description?</span>
-                </div>
-              </label>
-
-              {/* Item 5 */}
-              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${hasVideo ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'}`}>
-                <input type="checkbox" className="w-5 h-5 text-blue-600" checked={hasVideo} onChange={(e) => setHasVideo(e.target.checked)} />
-                <div className="ml-3">
-                  <span className="block font-medium text-gray-900">Product Video</span>
-                  <span className="block text-xs text-gray-500">Video uploaded?</span>
-                </div>
-              </label>
-
-              {/* Item 6 */}
-              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${hasBackend ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'}`}>
-                <input type="checkbox" className="w-5 h-5 text-blue-600" checked={hasBackend} onChange={(e) => setHasBackend(e.target.checked)} />
-                <div className="ml-3">
-                  <span className="block font-medium text-gray-900">Backend Search Terms</span>
-                  <span className="block text-xs text-gray-500">Hidden keywords filled?</span>
-                </div>
-              </label>
-
-              {/* Item 7 */}
-              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${hasReviews ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'}`}>
-                <input type="checkbox" className="w-5 h-5 text-blue-600" checked={hasReviews} onChange={(e) => setHasReviews(e.target.checked)} />
-                <div className="ml-3">
-                  <span className="block font-medium text-gray-900">Rating &gt; 4.0 Stars</span>
-                  <span className="block text-xs text-gray-500">Social proof?</span>
-                </div>
-              </label>
-
-              {/* Item 8 */}
-              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${hasWhiteBg ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'}`}>
-                <input type="checkbox" className="w-5 h-5 text-blue-600" checked={hasWhiteBg} onChange={(e) => setHasWhiteBg(e.target.checked)} />
-                <div className="ml-3">
-                  <span className="block font-medium text-gray-900">Main Image White BG</span>
-                  <span className="block text-xs text-gray-500">Amazon compliance?</span>
-                </div>
-              </label>
+            {/* Section 1: Content */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+               <div className="px-6 py-4 border-b border-slate-800 bg-slate-800/50 flex items-center gap-2">
+                  <Type className="w-4 h-4 text-blue-400" />
+                  <h3 className="font-bold text-white">SEO & Content</h3>
+               </div>
+               <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {items.filter(i => i.category === 'content').map(item => (
+                     <div 
+                        key={item.id} 
+                        onClick={() => toggleItem(item.id)}
+                        className={`p-4 rounded-lg border cursor-pointer transition-all flex items-center justify-between group ${
+                           item.checked ? 'bg-blue-900/20 border-blue-500/50' : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                        }`}
+                     >
+                        <div className="flex items-center gap-3">
+                           <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                              item.checked ? 'bg-blue-500 border-blue-500' : 'border-slate-600 group-hover:border-slate-400'
+                           }`}>
+                              {item.checked && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                           </div>
+                           <span className={item.checked ? 'text-blue-100 font-medium' : 'text-slate-400'}>{item.label}</span>
+                        </div>
+                        <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-500 font-mono">+{item.weight}pts</span>
+                     </div>
+                  ))}
+               </div>
             </div>
+
+            {/* Section 2: Media */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+               <div className="px-6 py-4 border-b border-slate-800 bg-slate-800/50 flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-purple-400" />
+                  <h3 className="font-bold text-white">Visuals & Media</h3>
+               </div>
+               <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {items.filter(i => i.category === 'media').map(item => (
+                     <div 
+                        key={item.id} 
+                        onClick={() => toggleItem(item.id)}
+                        className={`p-4 rounded-lg border cursor-pointer transition-all flex items-center justify-between group ${
+                           item.checked ? 'bg-purple-900/20 border-purple-500/50' : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                        }`}
+                     >
+                        <div className="flex items-center gap-3">
+                           <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                              item.checked ? 'bg-purple-500 border-purple-500' : 'border-slate-600 group-hover:border-slate-400'
+                           }`}>
+                              {item.checked && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                           </div>
+                           <span className={item.checked ? 'text-purple-100 font-medium' : 'text-slate-400'}>{item.label}</span>
+                        </div>
+                        <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-500 font-mono">+{item.weight}pts</span>
+                     </div>
+                  ))}
+               </div>
+            </div>
+
+            {/* Section 3: Reviews */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+               <div className="px-6 py-4 border-b border-slate-800 bg-slate-800/50 flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-400" />
+                  <h3 className="font-bold text-white">Conversion & Proof</h3>
+               </div>
+               <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {items.filter(i => i.category === 'reviews').map(item => (
+                     <div 
+                        key={item.id} 
+                        onClick={() => toggleItem(item.id)}
+                        className={`p-4 rounded-lg border cursor-pointer transition-all flex items-center justify-between group ${
+                           item.checked ? 'bg-yellow-900/20 border-yellow-500/50' : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                        }`}
+                     >
+                        <div className="flex items-center gap-3">
+                           <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                              item.checked ? 'bg-yellow-500 border-yellow-500' : 'border-slate-600 group-hover:border-slate-400'
+                           }`}>
+                              {item.checked && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                           </div>
+                           <span className={item.checked ? 'text-yellow-100 font-medium' : 'text-slate-400'}>{item.label}</span>
+                        </div>
+                        <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-500 font-mono">+{item.weight}pts</span>
+                     </div>
+                  ))}
+               </div>
+            </div>
+
           </div>
 
-          {/* RIGHT: SCORECARD */}
-          <div className="flex flex-col space-y-6">
+          {/* --- RIGHT: SCORECARD (4 Cols) --- */}
+          <div className="lg:col-span-4 space-y-6">
             
-            <div className="bg-slate-900 text-white p-8 rounded-xl shadow-xl text-center flex flex-col items-center justify-center h-full">
-              <h3 className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-4">Listing Score</h3>
-              
-              <div className="relative flex items-center justify-center">
-                <svg className="transform -rotate-90 w-48 h-48">
-                  <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-700" />
-                  <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="12" fill="transparent" className={`${score >= 80 ? 'text-green-500' : score >= 50 ? 'text-yellow-500' : 'text-red-500'} transition-all duration-1000 ease-out`} strokeDasharray={552} strokeDashoffset={552 - (552 * score) / 100} />
-                </svg>
-                <span className="absolute text-5xl font-extrabold">{score}</span>
-              </div>
+            {/* Score Wheel */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-8 flex flex-col items-center justify-center relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-3 opacity-5">
+                  <Trophy className="w-40 h-40" />
+               </div>
+               
+               <div className="relative z-10 text-center">
+                  <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Quality Score</h3>
+                  
+                  <div className="relative w-40 h-40 flex items-center justify-center mx-auto mb-4">
+                     {/* Background Circle */}
+                     <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-slate-800" />
+                        {/* Progress Circle */}
+                        <circle 
+                           cx="80" cy="80" r="70" 
+                           stroke="currentColor" 
+                           strokeWidth="10" 
+                           fill="transparent" 
+                           strokeLinecap="round"
+                           className={`transition-all duration-1000 ease-out ${
+                              score >= 80 ? 'text-emerald-500' : score >= 50 ? 'text-yellow-500' : 'text-red-500'
+                           }`}
+                           strokeDasharray={440} 
+                           strokeDashoffset={440 - (440 * score) / 100} 
+                        />
+                     </svg>
+                     <div className="absolute inset-0 flex items-center justify-center flex-col">
+                        <span className="text-5xl font-black text-white">{score}</span>
+                        <span className="text-xs text-slate-500">/ 100</span>
+                     </div>
+                  </div>
 
-              <div className={`mt-6 text-6xl font-black ${color}`}>
-                {grade}
-              </div>
-              <p className="text-slate-400 text-xs mt-2">Target Grade: A</p>
+                  <div className={`text-4xl font-black mb-1 ${
+                     score >= 80 ? 'text-emerald-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400'
+                  }`}>
+                     {grade}
+                  </div>
+                  <p className="text-sm text-slate-400 font-medium">{status}</p>
+               </div>
             </div>
 
             {/* Recommendations */}
-            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl">
-              <h4 className="font-bold text-yellow-800 text-sm mb-2">⚡ Quick Improvements:</h4>
-              <ul className="text-xs text-yellow-700 space-y-1 list-disc list-inside">
-                {!hasVideo && <li>Add a product video to boost conversion by 20%.</li>}
-                {!hasImages && <li>Upload at least 7 images (Lifestyle + Infographics).</li>}
-                {!hasTitleLen && <li>Expand title to include more keywords (150+ chars).</li>}
-                {!hasBackend && <li>Don't forget backend search terms (249 bytes)!</li>}
-                {score === 100 && <li>🎉 Perfect Listing! Now focus on PPC & Ads.</li>}
-              </ul>
+            <div className="bg-indigo-900/20 border border-indigo-900/50 rounded-xl p-6">
+               <h3 className="font-bold text-white flex items-center gap-2 mb-4 text-sm">
+                  <AlertTriangle className="w-4 h-4 text-indigo-400" /> Priority Fixes
+               </h3>
+               
+               {getMissingItems().length > 0 ? (
+                  <ul className="space-y-3">
+                     {getMissingItems().slice(0, 4).map(item => (
+                        <li key={item.id} className="flex gap-3 items-start text-xs">
+                           <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                           <div>
+                              <span className="text-slate-300 block mb-0.5">{item.label}</span>
+                              <span className="text-slate-500 leading-tight">{item.tip}</span>
+                           </div>
+                        </li>
+                     ))}
+                  </ul>
+               ) : (
+                  <div className="flex flex-col items-center justify-center py-4 text-center">
+                     <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-2" />
+                     <p className="text-sm text-emerald-400 font-bold">Perfect Listing!</p>
+                     <p className="text-xs text-slate-400 mt-1">You are ready to launch ads.</p>
+                  </div>
+               )}
             </div>
 
           </div>
 
         </div>
+
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-indigo-500" />
+              LQS Ranking Guide
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-blue-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Type className="w-5 h-5 text-blue-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Why Title Matters?</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    The title is the #1 factor for Amazon's algorithm. 
+                    <br/>
+                    <b>Tip:</b> Include your top 3 keywords in the first 80 characters. Don't waste space with filler words.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-purple-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <ImageIcon className="w-5 h-5 text-purple-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Image Optimization</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Customers can't touch the product. Images are their only way to "feel" it.
+                    <br/>
+                    <b>Required:</b> 1 Main (White BG), 3 Lifestyle, 2 Infographics, 1 Video.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-yellow-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Video className="w-5 h-5 text-yellow-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">The Video Edge</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Listings with video convert <b>20% better</b>. It keeps users on the page longer (Dwell Time), which signals Amazon to rank you higher.
+                 </p>
+              </div>
+
+           </div>
+        </div>
+
       </div>
-      <div className="mt-8 text-center text-gray-400 text-sm">Created by SmartRwl</div>
     </div>
   );
 }

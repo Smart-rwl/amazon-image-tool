@@ -1,189 +1,353 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { 
+  CalendarDays, 
+  TrendingUp, 
+  AlertTriangle, 
+  CheckCircle2, 
+  ShoppingCart, 
+  Package, 
+  Truck,
+  BookOpen,
+  Anchor,
+  DollarSign
+} from 'lucide-react';
 
-export default function InventoryPlanner() {
-  // Inputs
-  const [currentStock, setCurrentStock] = useState<number | ''>('');
-  const [dailySales, setDailySales] = useState<number | ''>('');
-  const [leadTime, setLeadTime] = useState<number | ''>(''); // Days to receive goods
-  const [targetDays, setTargetDays] = useState<number>(30); // How many days of stock you want to keep
+export default function SmartInventorySystem() {
+  // --- STATE ---
+  
+  // 1. Current Status
+  const [currentStock, setCurrentStock] = useState<number>(500);
+  const [inboundStock, setInboundStock] = useState<number>(0); // Stock already ordered but not arrived
+  const [dailySales, setDailySales] = useState<number>(20);
 
-  // Outputs
-  const [daysRemaining, setDaysRemaining] = useState<number>(0);
-  const [stockoutDate, setStockoutDate] = useState<string>('-');
-  const [reorderDate, setReorderDate] = useState<string>('-');
-  const [unitsToOrder, setUnitsToOrder] = useState<number>(0);
-  const [status, setStatus] = useState<string>('Enter Data');
+  // 2. Supply Chain Config
+  const [leadTime, setLeadTime] = useState<number>(15); // Days to arrive
+  const [safetyDays, setSafetyDays] = useState<number>(7); // Buffer days
+  const [orderInterval, setOrderInterval] = useState<number>(30); // How many days of stock to buy (MoQ duration)
 
+  // 3. Financials
+  const [unitCost, setUnitCost] = useState<number>(400); // Cost to buy 1 unit
+  const [seasonality, setSeasonality] = useState<number>(0); // % Growth expected (e.g., 20% for Q4)
+
+  // 4. Outputs
+  const [metrics, setMetrics] = useState({
+    burnRate: 0, // Adjusted sales velocity
+    daysOfInventory: 0,
+    stockoutDate: '',
+    reorderPoint: 0,
+    status: 'healthy' as 'critical' | 'warning' | 'healthy',
+    suggestedOrderQty: 0,
+    capitalRequired: 0,
+    safetyStockUnits: 0
+  });
+
+  // --- CALCULATION ENGINE ---
   useEffect(() => {
-    const stock = Number(currentStock) || 0;
-    const sales = Number(dailySales) || 0;
-    const lead = Number(leadTime) || 0;
+    // A. Adjusted Velocity (Seasonality)
+    const velocity = dailySales * (1 + seasonality / 100);
 
-    if (sales > 0 && stock >= 0) {
-      // 1. Days Remaining
-      const daysLeft = stock / sales;
-      setDaysRemaining(daysLeft);
+    // B. Coverage Analysis
+    const totalStock = currentStock + inboundStock;
+    const daysLeft = velocity > 0 ? totalStock / velocity : 0;
+    
+    const today = new Date();
+    const stockoutDt = new Date();
+    stockoutDt.setDate(today.getDate() + Math.floor(daysLeft));
 
-      // 2. Stockout Date
-      const today = new Date();
-      const outDate = new Date();
-      outDate.setDate(today.getDate() + daysLeft);
-      setStockoutDate(outDate.toDateString());
+    // C. Reorder Point (ROP) Formula
+    // ROP = (Lead Time x Daily Sales) + Safety Stock
+    const safetyUnits = Math.ceil(velocity * safetyDays);
+    const leadTimeDemand = Math.ceil(velocity * leadTime);
+    const rop = leadTimeDemand + safetyUnits;
 
-      // 3. Reorder Point (Date)
-      // You need to order when you have enough stock left ONLY to cover the lead time
-      // Buffer = Lead Time * Daily Sales
-      const bufferUnits = lead * sales;
-      
-      // If current stock is ALREADY lower than buffer, you are late!
-      let statusMsg = '';
-      if (stock <= bufferUnits) {
-        statusMsg = 'URGENT: Order Now!';
-      } else {
-        // Days until you hit the buffer
-        const daysUntilReorder = (stock - bufferUnits) / sales;
-        const reorderDt = new Date();
-        reorderDt.setDate(today.getDate() + daysUntilReorder);
-        setReorderDate(reorderDt.toDateString());
-        statusMsg = 'Stock Healthy';
-      }
-      setStatus(statusMsg);
+    // D. Order Quantity (EOQ Lite)
+    // Order = (Order Interval Days * Daily Sales) - (Current Stock - ROP)
+    // Simplified: Target Stock Level - Current Position
+    const targetStockLevel = rop + (velocity * orderInterval);
+    let orderQty = targetStockLevel - totalStock;
+    if (orderQty < 0) orderQty = 0;
 
-      // 4. Quantity to Order
-      // Goal: Cover Lead Time + Target Days
-      // Formula: (Daily Sales * (Lead Time + Target Days)) - Current Stock
-      // But usually, you just order (Daily Sales * Target Days) if you order right on time.
-      // Let's simplify: How much to buy to last 'Target Days' from today?
-      const suggestedOrder = (sales * targetDays) - (statusMsg.includes('URGENT') ? 0 : 0); 
-      // Actually, simple logic: I want to have stock for X days.
-      const needed = Math.ceil(sales * targetDays);
-      setUnitsToOrder(needed);
+    // E. Status Logic
+    let status: 'critical' | 'warning' | 'healthy' = 'healthy';
+    if (totalStock <= safetyUnits) status = 'critical';
+    else if (totalStock <= rop) status = 'warning';
 
-    } else {
-      setDaysRemaining(0);
-      setStockoutDate('-');
-      setReorderDate('-');
-      setStatus('Enter Sales Data');
-    }
-  }, [currentStock, dailySales, leadTime, targetDays]);
+    // F. Financials
+    const capital = orderQty * unitCost;
+
+    setMetrics({
+      burnRate: velocity,
+      daysOfInventory: daysLeft,
+      stockoutDate: stockoutDt.toDateString(),
+      reorderPoint: rop,
+      status,
+      suggestedOrderQty: Math.ceil(orderQty),
+      capitalRequired: capital,
+      safetyStockUnits: safetyUnits
+    });
+
+  }, [currentStock, inboundStock, dailySales, leadTime, safetyDays, orderInterval, unitCost, seasonality]);
+
+  const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-8">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Inventory & Restock Planner
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Calculate when you will run out of stock and how much to reorder.
-          </p>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Package className="w-8 h-8 text-blue-500" />
+              Smart Restock Intelligence
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Prevent stockouts with Safety Stock & Seasonality analysis.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+             <div className={`w-3 h-3 rounded-full ${
+                metrics.status === 'healthy' ? 'bg-emerald-500' : 
+                metrics.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'
+             }`}></div>
+             <span className="text-sm font-medium text-slate-300 uppercase tracking-wide">
+                Inventory Health: {metrics.status}
+             </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
           
-          {/* INPUTS */}
-          <div className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Stock (Units)</label>
-              <input
-                type="number"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="e.g. 500"
-                value={currentStock}
-                onChange={(e) => setCurrentStock(Number(e.target.value))}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Avg. Daily Sales (Units/Day)</label>
-              <input
-                type="number"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="e.g. 10"
-                value={dailySales}
-                onChange={(e) => setDailySales(Number(e.target.value))}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Lead Time (Days)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="Supplier time"
-                    value={leadTime}
-                    onChange={(e) => setLeadTime(Number(e.target.value))}
-                  />
-                  <div className="text-xs text-gray-400 mt-1">Days to arrive</div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Cover Goal (Days)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={targetDays}
-                    onChange={(e) => setTargetDays(Number(e.target.value))}
-                  />
-                  <div className="text-xs text-gray-400 mt-1">Stock to buy</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* RESULTS */}
-          <div className="bg-slate-800 text-white p-6 rounded-xl shadow-lg flex flex-col justify-between">
+          {/* --- LEFT: CONTROL PANEL (4 Cols) --- */}
+          <div className="lg:col-span-4 space-y-6">
             
-            {/* Status Badge */}
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-lg font-bold">Stock Analysis</h2>
-                <p className="text-xs text-slate-400">Based on sales velocity</p>
-              </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-                status.includes('URGENT') ? 'bg-red-500 text-white animate-pulse' : 'bg-green-500 text-white'
-              }`}>
-                {status}
-              </span>
+            {/* 1. Velocity Inputs */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <TrendingUp className="w-4 h-4 text-emerald-400" /> Sales Velocity
+               </h3>
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Avg Daily Sales (Units)</label>
+                     <input type="number" value={dailySales} onChange={e => setDailySales(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-emerald-500 outline-none" />
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Seasonality Growth (%)</label>
+                     <div className="flex items-center gap-2">
+                        <input type="range" min="0" max="200" step="10" value={seasonality} onChange={e => setSeasonality(Number(e.target.value))} className="w-full accent-emerald-500" />
+                        <span className="text-white font-mono w-12 text-right">+{seasonality}%</span>
+                     </div>
+                     <p className="text-[10px] text-slate-500 mt-1">Adjust for peak season (e.g. Q4)</p>
+                  </div>
+               </div>
             </div>
 
-            <div className="space-y-4 my-6">
-              <div className="flex justify-between items-center border-b border-slate-700 pb-2">
-                <span className="text-slate-300 text-sm">Days Until Empty:</span>
-                <span className="text-2xl font-mono font-bold">{Math.floor(daysRemaining)} Days</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-slate-700 pb-2">
-                <span className="text-slate-300 text-sm">Estimated Stockout:</span>
-                <span className="font-medium text-orange-300">{stockoutDate}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-300 text-sm">Latest Reorder Date:</span>
-                <span className={`font-bold ${status.includes('URGENT') ? 'text-red-400' : 'text-blue-400'}`}>
-                   {status.includes('URGENT') ? 'TODAY' : reorderDate}
-                </span>
-              </div>
+            {/* 2. Stock Position */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <Package className="w-4 h-4 text-blue-400" /> Current Position
+               </h3>
+               <div className="grid grid-cols-2 gap-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">On Hand</label>
+                     <input type="number" value={currentStock} onChange={e => setCurrentStock(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none" />
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Inbound</label>
+                     <input type="number" value={inboundStock} onChange={e => setInboundStock(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none" />
+                  </div>
+               </div>
             </div>
 
-            <div className="bg-slate-700 p-4 rounded-lg text-center">
-              <p className="text-xs uppercase text-slate-400 mb-1">Recommended Order Qty</p>
-              <p className="text-3xl font-extrabold text-white">{unitsToOrder} Units</p>
-              <p className="text-xs text-slate-400 mt-1">To cover next {targetDays} days</p>
+            {/* 3. Supply Chain Config */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <Truck className="w-4 h-4 text-orange-400" /> Supply Chain
+               </h3>
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Lead Time (Days)</label>
+                     <input type="number" value={leadTime} onChange={e => setLeadTime(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-orange-500 outline-none" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Safety Days</label>
+                        <input type="number" value={safetyDays} onChange={e => setSafetyDays(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-orange-500 outline-none" />
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Order Cycle</label>
+                        <input type="number" value={orderInterval} onChange={e => setOrderInterval(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-orange-500 outline-none" />
+                     </div>
+                  </div>
+               </div>
             </div>
 
           </div>
 
-        </div>
-      </div>
+          {/* --- RIGHT: INTELLIGENCE PANEL (8 Cols) --- */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            {/* 1. Main Action Card */}
+            <div className={`rounded-xl border p-8 flex flex-col md:flex-row gap-8 items-center justify-between shadow-2xl ${
+               metrics.status === 'critical' ? 'bg-red-950/40 border-red-900' :
+               metrics.status === 'warning' ? 'bg-yellow-950/40 border-yellow-900' :
+               'bg-emerald-950/40 border-emerald-900'
+            }`}>
+               <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                     <ShoppingCart className={`w-5 h-5 ${
+                        metrics.status === 'critical' ? 'text-red-400' :
+                        metrics.status === 'warning' ? 'text-yellow-400' : 'text-emerald-400'
+                     }`} />
+                     <span className="text-sm font-bold uppercase tracking-wider text-slate-300">Recommended Order</span>
+                  </div>
+                  <div className="text-6xl font-extrabold text-white">
+                     {metrics.suggestedOrderQty} <span className="text-2xl font-medium text-slate-400">units</span>
+                  </div>
+                  {metrics.suggestedOrderQty > 0 && (
+                     <div className="inline-flex items-center gap-2 bg-slate-950/50 px-3 py-1 rounded-lg border border-white/10 text-sm text-slate-300 mt-2">
+                        <DollarSign className="w-3 h-3 text-emerald-400" />
+                        Capital Required: <span className="text-emerald-400 font-mono font-bold">{fmt(metrics.capitalRequired)}</span>
+                     </div>
+                  )}
+               </div>
 
-      <div className="mt-8 text-center text-gray-400 text-sm">
-        Created by SmartRwl
+               <div className="bg-slate-950/50 p-5 rounded-xl border border-white/10 w-full md:w-72 space-y-3">
+                  <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                     <span className="text-xs text-slate-400 uppercase font-bold">Reorder Point</span>
+                     <span className="text-white font-mono font-bold">{metrics.reorderPoint} units</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                     <span className="text-xs text-slate-400 uppercase font-bold">Safety Stock</span>
+                     <span className="text-white font-mono font-bold">{metrics.safetyStockUnits} units</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                     <span className="text-xs text-slate-400 uppercase font-bold">Burn Rate</span>
+                     <span className="text-white font-mono font-bold">{metrics.burnRate.toFixed(1)} / day</span>
+                  </div>
+               </div>
+            </div>
+
+            {/* 2. Timeline Dashboard */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
+                     <CalendarDays className="w-4 h-4" /> Days of Inventory
+                  </h3>
+                  <div className="flex items-baseline gap-2 mb-2">
+                     <span className={`text-4xl font-bold ${metrics.daysOfInventory < leadTime ? 'text-red-400' : 'text-white'}`}>
+                        {Math.floor(metrics.daysOfInventory)}
+                     </span>
+                     <span className="text-sm text-slate-400">days left</span>
+                  </div>
+                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-2">
+                     <div 
+                        className={`h-full ${metrics.daysOfInventory < 15 ? 'bg-red-500' : 'bg-blue-500'}`} 
+                        style={{ width: `${Math.min(metrics.daysOfInventory, 100)}%` }}
+                     ></div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-3">
+                     Projected stockout: <b className="text-slate-300">{metrics.stockoutDate}</b>
+                  </p>
+               </div>
+
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
+                     <DollarSign className="w-4 h-4" /> Unit Cost Config
+                  </h3>
+                  <div className="flex items-center gap-2 mb-4">
+                     <span className="text-slate-400 text-sm">Cost per Unit:</span>
+                     <input 
+                        type="number" 
+                        value={unitCost} 
+                        onChange={e => setUnitCost(Number(e.target.value))} 
+                        className="w-24 bg-slate-950 border border-slate-700 rounded p-1 text-white text-sm text-center"
+                     />
+                  </div>
+                  <div className="p-3 bg-blue-900/20 border border-blue-900/50 rounded-lg text-xs text-blue-200">
+                     <p>
+                        Knowing your capital requirement helps you prepare cash flow before placing the PO.
+                     </p>
+                  </div>
+               </div>
+
+            </div>
+
+            {/* 3. Diagnostics */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+               <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">System Status</h3>
+               <div className="flex items-center gap-4">
+                  {metrics.status === 'critical' && (
+                     <div className="flex items-center gap-3 text-red-400 bg-red-950/30 p-3 rounded-lg border border-red-900 w-full">
+                        <AlertTriangle className="w-5 h-5 shrink-0" />
+                        <span className="text-sm font-bold">URGENT: Stock is below Safety Level. You risk stocking out during Lead Time. Air Freight recommended.</span>
+                     </div>
+                  )}
+                  {metrics.status === 'warning' && (
+                     <div className="flex items-center gap-3 text-yellow-400 bg-yellow-950/30 p-3 rounded-lg border border-yellow-900 w-full">
+                        <AlertTriangle className="w-5 h-5 shrink-0" />
+                        <span className="text-sm font-bold">Reorder Point Hit. Place order immediately to avoid stockout.</span>
+                     </div>
+                  )}
+                  {metrics.status === 'healthy' && (
+                     <div className="flex items-center gap-3 text-emerald-400 bg-emerald-950/30 p-3 rounded-lg border border-emerald-900 w-full">
+                        <CheckCircle2 className="w-5 h-5 shrink-0" />
+                        <span className="text-sm font-bold">Stock levels are healthy. No immediate action required.</span>
+                     </div>
+                  )}
+               </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-blue-500" />
+              Inventory Strategy Guide
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Anchor className="w-5 h-5 text-emerald-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Safety Stock</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Never aim for 0 stock. Safety Stock is your insurance against supplier delays or sudden sales spikes. 
+                    <br/>
+                    <b>Recommended:</b> 7-14 days for local suppliers, 30 days for imports.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-orange-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <TrendingUp className="w-5 h-5 text-orange-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Seasonality</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Don't reorder based on <i>last month's</i> sales if Q4 is coming. Use the <b>Seasonality Slider</b> to simulate a +30% or +50% demand spike so you don't run dry in December.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-blue-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Truck className="w-5 h-5 text-blue-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Reorder Point (ROP)</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    The ROP is the trigger. When your stock hits this number (e.g., 500 units), you MUST place an order that day. Waiting even 2 days eats into your safety buffer.
+                 </p>
+              </div>
+
+           </div>
+        </div>
+
       </div>
     </div>
   );

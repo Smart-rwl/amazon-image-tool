@@ -1,129 +1,297 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Code2, 
+  Smartphone, 
+  Monitor, 
+  Bold, 
+  List, 
+  Eraser, 
+  Copy, 
+  CheckCircle2, 
+  AlertTriangle,
+  FileCode,
+  BookOpen,
+  Info
+} from 'lucide-react';
 
-export default function HtmlFormatter() {
-  const [input, setInput] = useState('');
-  const [output, setOutput] = useState('');
-  const [copied, setCopied] = useState(false);
+const ALLOWED_TAGS = ['<b>', '</b>', '<br>', '<br/>', '<p>', '</p>', '<ul>', '</ul>', '<li>', '</li>'];
 
-  const handleFormat = () => {
-    if (!input) return;
+export default function AmazonHtmlEditor() {
+  // --- STATE ---
+  const [rawText, setRawText] = useState<string>('');
+  const [htmlOutput, setHtmlOutput] = useState<string>('');
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [validationMsg, setValidationMsg] = useState<{ type: 'error' | 'success', text: string } | null>(null);
 
-    let formatted = input;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // 1. Handle Bold: Replaces *text* with <b>text</b>
-    // Example: *Great Quality* becomes <b>Great Quality</b>
-    formatted = formatted.replace(/\*(.*?)\*/g, '<b>$1</b>');
+  // --- ACTIONS ---
 
-    // 2. Handle Bullet Points: Lines starting with "- " become <li>...</li>
-    // We also wrap them in <ul> if strictly needed, but many sellers just use simple formatting.
-    // Let's stick to simple line breaks + bullet characters for safety, 
-    // OR converting "- " to a bullet symbol nicely.
-    // For Amazon HTML, usually <br> is key.
+  // 1. Text Transformation Logic
+  const processText = (text: string) => {
+    setRawText(text);
     
-    // 3. Handle Line Breaks: Replace newlines with <br>
-    formatted = formatted.replace(/\n/g, '<br>');
+    // Auto-convert line breaks to <br> for the HTML output view
+    // But we keep the raw text clean for editing
+    let processed = text
+      .replace(/\n/g, '<br>\n')
+      .replace(/\*(.*?)\*/g, '<b>$1</b>');
+      
+    setHtmlOutput(processed);
+    validateHtml(processed);
+  };
 
-    setOutput(formatted);
-    setCopied(false);
+  // 2. Insert Formatting at Cursor
+  const insertTag = (tagStart: string, tagEnd: string = '') => {
+    if (!textareaRef.current) return;
+    
+    const start = textareaRef.current.selectionStart;
+    const end = textareaRef.current.selectionEnd;
+    const text = rawText;
+    
+    const before = text.substring(0, start);
+    const selection = text.substring(start, end);
+    const after = text.substring(end);
+    
+    const newText = before + tagStart + selection + tagEnd + after;
+    
+    setRawText(newText);
+    processText(newText);
+    
+    // Restore focus
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(start + tagStart.length, end + tagStart.length);
+    }, 0);
+  };
+
+  // 3. Validation Logic (Amazon Compliance)
+  const validateHtml = (html: string) => {
+    // Check for banned tags (script, iframe, style, a href, img)
+    const bannedPatterns = [/<script/i, /<iframe/i, /<style/i, /<a\s/i, /<img/i, /<h[1-6]/i, /<div/i, /<span/i];
+    const foundBanned = bannedPatterns.find(p => p.test(html));
+
+    if (foundBanned) {
+      setValidationMsg({ type: 'error', text: 'Warning: Contains forbidden HTML tags (like scripts, links, or headers) which Amazon bans.' });
+    } else {
+      setValidationMsg(null);
+    }
   };
 
   const handleCopy = () => {
-    if (!output) return;
-    navigator.clipboard.writeText(output);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(htmlOutput);
+    setValidationMsg({ type: 'success', text: 'HTML copied to clipboard!' });
+    setTimeout(() => setValidationMsg(null), 3000);
   };
 
-  const handleClear = () => {
-    setInput('');
-    setOutput('');
-    setCopied(false);
+  const handleClean = () => {
+    // Remove extra whitespace
+    const cleaned = rawText.replace(/\s+/g, ' ').trim();
+    processText(cleaned);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-6">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
         {/* HEADER */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Amazon HTML Description Formatter
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Type normally. We convert it to Amazon-compliant HTML tags.
-          </p>
-          <div className="mt-4 text-xs bg-blue-50 text-blue-700 p-2 rounded inline-block">
-            <strong>Tip:</strong> Wrap text in *asterisks* to make it <b>bold</b>.
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Code2 className="w-8 h-8 text-indigo-500" />
+              Amazon HTML Architect
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Write compliant product descriptions with live preview and validation.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 text-sm text-slate-400">
+             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+             <span>Amazon Compliant Output</span>
           </div>
         </div>
 
-        {/* EDITOR GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
           
-          {/* INPUT */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
-              Type your description here:
-            </label>
-            <textarea
-              className="w-full h-80 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none text-sm leading-relaxed"
-              placeholder="Product Features:&#10;- High Quality Material&#10;- *Waterproof* Design&#10;- Easy to use"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-            />
+          {/* --- LEFT: EDITOR --- */}
+          <div className="flex flex-col h-full space-y-4">
+            
+            {/* Toolbar */}
+            <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl flex gap-2">
+               <button onClick={() => insertTag('<b>', '</b>')} className="p-2 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition" title="Bold">
+                  <Bold className="w-4 h-4" />
+               </button>
+               <button onClick={() => insertTag('<ul>\n<li>', '</li>\n</ul>')} className="p-2 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition" title="List">
+                  <List className="w-4 h-4" />
+               </button>
+               <button onClick={() => insertTag('<br>\n')} className="p-2 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition text-xs font-mono font-bold">
+                  BR
+               </button>
+               <div className="w-px bg-slate-800 mx-1"></div>
+               <button onClick={handleClean} className="p-2 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition" title="Clean Spacing">
+                  <Eraser className="w-4 h-4" />
+               </button>
+            </div>
+
+            {/* Input Area */}
+            <div className="flex-1 relative">
+               <textarea
+                  ref={textareaRef}
+                  value={rawText}
+                  onChange={(e) => processText(e.target.value)}
+                  className="w-full h-[500px] bg-slate-900 border border-slate-800 rounded-xl p-6 text-sm font-mono text-slate-200 focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
+                  placeholder="Start typing your product description here...&#10;&#10;Use the toolbar above to add bold text or lists."
+               />
+               <div className="absolute bottom-4 right-4 text-xs text-slate-600">
+                  {rawText.length} chars
+               </div>
+            </div>
+
+            {/* HTML Output (Read Only) */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
+               <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <span>Generated HTML Code</span>
+                  <button onClick={handleCopy} className="flex items-center gap-1 hover:text-white transition">
+                     <Copy className="w-3 h-3" /> Copy
+                  </button>
+               </div>
+               <pre className="text-xs text-emerald-400 font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-32 scrollbar-thin">
+                  {htmlOutput || '<HTML code will appear here>'}
+               </pre>
+            </div>
           </div>
 
-          {/* OUTPUT */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
-              HTML Result (Copy this to Amazon):
-            </label>
-            <textarea
-              readOnly
-              className="w-full h-80 p-4 bg-gray-50 border border-gray-300 rounded-lg text-xs font-mono text-gray-600 resize-none focus:outline-none"
-              value={output}
-              placeholder="Result will appear here..."
-            />
+          {/* --- RIGHT: PREVIEW & VALIDATION --- */}
+          <div className="flex flex-col h-full space-y-6">
+            
+            {/* Validation Message */}
+            {validationMsg && (
+               <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+                  validationMsg.type === 'error' ? 'bg-red-950/30 border-red-900 text-red-200' : 'bg-emerald-950/30 border-emerald-900 text-emerald-200'
+               }`}>
+                  {validationMsg.type === 'error' ? <AlertTriangle className="w-5 h-5 shrink-0" /> : <CheckCircle2 className="w-5 h-5 shrink-0" />}
+                  <p className="text-sm">{validationMsg.text}</p>
+               </div>
+            )}
+
+            {/* Preview Window */}
+            <div className="flex-1 bg-white rounded-xl overflow-hidden shadow-2xl flex flex-col">
+               {/* Browser Header */}
+               <div className="bg-slate-100 border-b border-slate-200 p-3 flex justify-between items-center">
+                  <div className="flex gap-1.5">
+                     <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                     <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                     <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                  </div>
+                  <div className="flex bg-slate-200 rounded-lg p-1 gap-1">
+                     <button 
+                        onClick={() => setPreviewMode('desktop')}
+                        className={`p-1.5 rounded ${previewMode === 'desktop' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
+                     >
+                        <Monitor className="w-4 h-4" />
+                     </button>
+                     <button 
+                        onClick={() => setPreviewMode('mobile')}
+                        className={`p-1.5 rounded ${previewMode === 'mobile' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
+                     >
+                        <Smartphone className="w-4 h-4" />
+                     </button>
+                  </div>
+               </div>
+
+               {/* Simulated Amazon Page */}
+               <div className="flex-1 overflow-y-auto bg-white">
+                  <div className={`mx-auto transition-all duration-300 ${previewMode === 'mobile' ? 'max-w-[375px] border-x border-slate-200 min-h-full' : 'w-full'}`}>
+                     
+                     {/* Fake Amazon Header */}
+                     <div className="border-b border-slate-100 p-4 mb-4">
+                        <div className="h-4 w-24 bg-slate-200 rounded mb-2"></div>
+                        <div className="h-8 w-3/4 bg-slate-100 rounded"></div>
+                     </div>
+
+                     <div className="p-6">
+                        <h3 className="text-[#c45500] font-bold text-lg mb-4 border-b border-slate-100 pb-2">Product Description</h3>
+                        
+                        {/* THE RENDERED CONTENT */}
+                        <div 
+                           className="prose prose-sm max-w-none text-[#333333] leading-relaxed font-sans amazon-preview"
+                           dangerouslySetInnerHTML={{ __html: htmlOutput }}
+                        />
+                        
+                        {!htmlOutput && (
+                           <p className="text-slate-300 italic text-center py-10">Preview area...</p>
+                        )}
+                     </div>
+
+                  </div>
+               </div>
+            </div>
+
           </div>
+
         </div>
 
-        {/* ACTION BUTTONS */}
-        <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t">
-          <button
-            onClick={handleFormat}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-sm"
-          >
-            Convert to HTML
-          </button>
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-indigo-500" />
+              HTML Compliance Guide
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Allowed Tags</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed font-mono">
+                    &lt;b&gt;, &lt;br&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;
+                 </p>
+                 <p className="text-xs text-slate-500 mt-2">
+                    Amazon allows very basic formatting. Anything else is stripped or causes errors.
+                 </p>
+              </div>
 
-          <button
-            onClick={handleCopy}
-            disabled={!output}
-            className={`flex-1 font-bold py-3 px-4 rounded-lg transition-colors shadow-sm border ${
-              copied
-                ? 'bg-green-600 text-white border-transparent'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            {copied ? 'Copied!' : 'Copy HTML'}
-          </button>
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-red-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <AlertTriangle className="w-5 h-5 text-red-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Forbidden Tags</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed font-mono">
+                    &lt;h1&gt;, &lt;img&gt;, &lt;a href&gt;, &lt;iframe&gt;
+                 </p>
+                 <p className="text-xs text-slate-500 mt-2">
+                    Never use headings or links. Amazon wants the user to stay on the page.
+                 </p>
+              </div>
 
-          <button
-            onClick={handleClear}
-            className="px-6 py-3 text-red-600 font-medium hover:bg-red-50 rounded-lg transition-colors"
-          >
-            Clear
-          </button>
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-indigo-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Info className="w-5 h-5 text-indigo-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Mobile Optimization</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Over 70% of shoppers are on mobile. Large blocks of text look terrible on small screens. 
+                    <br/>
+                    <b>Tip:</b> Use short paragraphs (2-3 lines max) and bullet points.
+                 </p>
+              </div>
+
+           </div>
         </div>
 
       </div>
-
-      {/* FOOTER */}
-      <div className="mt-8 text-center text-gray-400 text-sm">
-        Created by SmartRwl
-      </div>
+      
+      {/* Custom Styles for Preview */}
+      <style jsx global>{`
+        .amazon-preview b { font-weight: 700; color: #111; }
+        .amazon-preview ul { list-style-type: disc; padding-left: 20px; margin-bottom: 10px; }
+        .amazon-preview p { margin-bottom: 10px; }
+        .amazon-preview br { content: ""; display: block; margin-bottom: 10px; }
+      `}</style>
     </div>
   );
 }

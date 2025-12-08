@@ -1,44 +1,64 @@
 'use client';
 
 import React, { useState } from 'react';
+import { 
+  Shuffle, 
+  Copy, 
+  Trash2, 
+  Settings, 
+  ArrowRight, 
+  CheckCircle2,
+  BookOpen,
+  Search,
+  Target,
+  Zap
+} from 'lucide-react';
 
-export default function KeywordMixer() {
-  // Inputs
+export default function PPCCampaignArchitect() {
+  // --- STATE ---
   const [colA, setColA] = useState('');
   const [colB, setColB] = useState('');
   const [colC, setColC] = useState('');
   
-  // Settings
-  const [matchType, setMatchType] = useState('broad'); // broad, phrase, exact
+  const [matchType, setMatchType] = useState<'broad' | 'phrase' | 'exact' | 'modified'>('broad');
   const [output, setOutput] = useState('');
   const [count, setCount] = useState(0);
-  const [showGuide, setShowGuide] = useState(false);
 
+  // --- ENGINE ---
   const generateMix = () => {
-    // Split by new lines and remove empty lines
+    // 1. Clean Inputs (Split by line, trim whitespace, remove empty lines)
     const listA = colA.split('\n').map(s => s.trim()).filter(s => s);
     const listB = colB.split('\n').map(s => s.trim()).filter(s => s);
     const listC = colC.split('\n').map(s => s.trim()).filter(s => s);
 
-    let results: string[] = [];
-
-    // Logic: If a list is empty, treat it as having one empty string so loops still run
+    // 2. Handle Empty Columns (If empty, treat as a single empty string to allow loops to run)
     const safeA = listA.length ? listA : [''];
     const safeB = listB.length ? listB : [''];
     const safeC = listC.length ? listC : [''];
 
+    let results: string[] = [];
+
+    // 3. Permutation Loop
     safeA.forEach(a => {
       safeB.forEach(b => {
         safeC.forEach(c => {
-          // Combine parts with spaces
-          let phrase = `${a} ${b} ${c}`.trim().replace(/\s+/g, ' ');
+          // Join with space, remove double spaces if any part was empty
+          let phrase = `${a} ${b} ${c}`.replace(/\s+/g, ' ').trim();
           
           if (phrase) {
-            // Apply PPC Match Types
-            if (matchType === 'phrase') phrase = `"${phrase}"`;
-            if (matchType === 'exact') phrase = `[${phrase}]`;
-            if (matchType === 'modified') phrase = `+${a} +${b} +${c}`.trim().replace(/\s+/g, ' ');
-            
+            // 4. Apply Match Type Syntax
+            switch (matchType) {
+              case 'phrase':
+                phrase = `"${phrase}"`;
+                break;
+              case 'exact':
+                phrase = `[${phrase}]`;
+                break;
+              case 'modified':
+                // Adds '+' before every word: +red +shoes
+                phrase = phrase.split(' ').map(w => `+${w}`).join(' ');
+                break;
+            }
             results.push(phrase);
           }
         });
@@ -58,142 +78,211 @@ export default function KeywordMixer() {
   };
 
   const copyToClipboard = () => {
+    if (!output) return;
     navigator.clipboard.writeText(output);
-    alert(`Copied ${count} keywords!`);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-6xl w-full bg-white p-8 rounded-xl shadow-lg space-y-6">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            PPC Keyword Mixer
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Combine lists of words into Broad, Phrase, or Exact match keywords for Amazon Ads.
-          </p>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Shuffle className="w-8 h-8 text-indigo-500" />
+              PPC Campaign Architect
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Generate thousands of Amazon & Google keyword variations in seconds.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+             <Target className="w-4 h-4 text-emerald-500" />
+             <span className="text-sm font-medium text-slate-300">
+                Mode: {matchType.toUpperCase()}
+             </span>
+          </div>
         </div>
 
-        {/* --- HOW TO USE SECTION (Collapsible) --- */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
-          <button 
-            onClick={() => setShowGuide(!showGuide)}
-            className="w-full flex justify-between items-center p-4 text-blue-800 font-bold text-sm hover:bg-blue-100 transition-colors"
-          >
-            <span>📖 How to Use This Tool</span>
-            <svg className={`w-5 h-5 transition-transform ${showGuide ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-          </button>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
           
-          {showGuide && (
-            <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-2 bg-blue-50/50">
-              <p><strong>1. Enter Keywords:</strong> Fill columns with variations.
-                 <br/><span className="text-xs text-gray-500">Ex: Col A (Red, Blue), Col B (Shoes, Sneakers), Col C (For Men, For Running).</span>
-              </p>
-              <p><strong>2. Choose Match Type:</strong> 
-                 <ul className="list-disc list-inside ml-2 text-xs">
-                   <li><strong>Broad:</strong> Just the words (Red Shoes)</li>
-                   <li><strong>Phrase:</strong> Quotes ("Red Shoes") - Ads show if customer types phrase.</li>
-                   <li><strong>Exact:</strong> Brackets ([Red Shoes]) - Ads show ONLY for exact match.</li>
-                 </ul>
-              </p>
-              <p><strong>3. Generate:</strong> Click to create every possible combination instantly.</p>
-              <p><strong>4. Copy:</strong> Paste directly into your Amazon PPC Campaign Manager.</p>
-            </div>
-          )}
-        </div>
+          {/* --- LEFT: BUILDER (9 Cols) --- */}
+          <div className="lg:col-span-9 space-y-6">
+            
+            {/* Input Columns */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               {/* Col A */}
+               <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 flex flex-col h-[400px]">
+                  <div className="flex justify-between items-center mb-3">
+                     <label className="text-xs font-bold text-indigo-400 uppercase tracking-wider">A: Seed / Prefix</label>
+                     <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400">{colA.split('\n').filter(s=>s.trim()).length}</span>
+                  </div>
+                  <textarea 
+                     value={colA}
+                     onChange={e => setColA(e.target.value)}
+                     className="flex-1 w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm font-mono text-slate-300 focus:border-indigo-500 outline-none resize-none"
+                     placeholder="e.g.&#10;Nike&#10;Adidas&#10;Running"
+                  />
+               </div>
 
-        {/* MAIN INTERFACE */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          
-          {/* Column A */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-gray-700 uppercase">Column A (Prefix)</label>
-            <textarea
-              className="w-full h-64 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="e.g.&#10;Nike&#10;Adidas&#10;Puma"
-              value={colA}
-              onChange={(e) => setColA(e.target.value)}
-            />
-          </div>
+               {/* Col B */}
+               <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 flex flex-col h-[400px]">
+                  <div className="flex justify-between items-center mb-3">
+                     <label className="text-xs font-bold text-blue-400 uppercase tracking-wider">B: Product / Core</label>
+                     <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400">{colB.split('\n').filter(s=>s.trim()).length}</span>
+                  </div>
+                  <textarea 
+                     value={colB}
+                     onChange={e => setColB(e.target.value)}
+                     className="flex-1 w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm font-mono text-slate-300 focus:border-blue-500 outline-none resize-none"
+                     placeholder="e.g.&#10;Shoes&#10;Sneakers&#10;Trainers"
+                  />
+               </div>
 
-          {/* Column B */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-gray-700 uppercase">Column B (Keyword)</label>
-            <textarea
-              className="w-full h-64 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="e.g.&#10;Shoes&#10;Sneakers&#10;Running Shoes"
-              value={colB}
-              onChange={(e) => setColB(e.target.value)}
-            />
-          </div>
-
-          {/* Column C */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-gray-700 uppercase">Column C (Suffix)</label>
-            <textarea
-              className="w-full h-64 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="e.g.&#10;Men&#10;Women&#10;Black"
-              value={colC}
-              onChange={(e) => setColC(e.target.value)}
-            />
-          </div>
-
-          {/* CONTROLS COLUMN */}
-          <div className="flex flex-col space-y-4 justify-center bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700">Match Type</label>
-              <select 
-                className="w-full p-2 border rounded bg-white shadow-sm"
-                value={matchType}
-                onChange={(e) => setMatchType(e.target.value)}
-              >
-                <option value="broad">Broad Match</option>
-                <option value="phrase">"Phrase Match"</option>
-                <option value="exact">[Exact Match]</option>
-              </select>
+               {/* Col C */}
+               <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 flex flex-col h-[400px]">
+                  <div className="flex justify-between items-center mb-3">
+                     <label className="text-xs font-bold text-emerald-400 uppercase tracking-wider">C: Suffix / Modifier</label>
+                     <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400">{colC.split('\n').filter(s=>s.trim()).length}</span>
+                  </div>
+                  <textarea 
+                     value={colC}
+                     onChange={e => setColC(e.target.value)}
+                     className="flex-1 w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm font-mono text-slate-300 focus:border-emerald-500 outline-none resize-none"
+                     placeholder="e.g.&#10;Men&#10;Women&#10;Sale"
+                  />
+               </div>
             </div>
 
-            <button 
-              onClick={generateMix}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-all"
-            >
-              Merge & Mix ⚡
-            </button>
+            {/* Output Area */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+               <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2">
+                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                     <span className="text-sm font-bold text-white">Generated Keywords ({count})</span>
+                  </div>
+                  <button onClick={copyToClipboard} className="text-xs flex items-center gap-1 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded transition text-slate-300 hover:text-white">
+                     <Copy className="w-3 h-3" /> Copy All
+                  </button>
+               </div>
+               <textarea 
+                  readOnly
+                  value={output}
+                  className="w-full h-32 bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm font-mono text-emerald-400 focus:outline-none resize-none"
+                  placeholder="Results will appear here..."
+               />
+            </div>
 
-            <button 
-              onClick={clearAll}
-              className="w-full py-2 bg-white border border-gray-300 text-gray-600 font-bold rounded hover:bg-gray-100"
-            >
-              Clear
-            </button>
+          </div>
+
+          {/* --- RIGHT: CONTROLS (3 Cols) --- */}
+          <div className="lg:col-span-3 space-y-6">
+            
+            {/* Action Panel */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 sticky top-6">
+               <h3 className="font-bold text-white flex items-center gap-2 mb-6">
+                  <Settings className="w-4 h-4 text-slate-400" /> Configuration
+               </h3>
+               
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Match Type</label>
+                     <div className="grid grid-cols-1 gap-2">
+                        <button 
+                           onClick={() => setMatchType('broad')} 
+                           className={`px-4 py-2 rounded text-sm text-left border transition-all ${matchType === 'broad' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-600'}`}
+                        >
+                           Broad <span className="float-right opacity-50">abc</span>
+                        </button>
+                        <button 
+                           onClick={() => setMatchType('phrase')} 
+                           className={`px-4 py-2 rounded text-sm text-left border transition-all ${matchType === 'phrase' ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-600'}`}
+                        >
+                           "Phrase" <span className="float-right opacity-50">"abc"</span>
+                        </button>
+                        <button 
+                           onClick={() => setMatchType('exact')} 
+                           className={`px-4 py-2 rounded text-sm text-left border transition-all ${matchType === 'exact' ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-600'}`}
+                        >
+                           [Exact] <span className="float-right opacity-50">[abc]</span>
+                        </button>
+                     </div>
+                  </div>
+
+                  <div className="h-px bg-slate-800 my-2"></div>
+
+                  <button 
+                     onClick={generateMix}
+                     className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition flex items-center justify-center gap-2"
+                  >
+                     <Zap className="w-4 h-4 fill-current" /> Generate Mix
+                  </button>
+
+                  <button 
+                     onClick={clearAll}
+                     className="w-full py-2 bg-transparent border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 font-medium rounded-lg transition"
+                  >
+                     Reset
+                  </button>
+               </div>
+            </div>
+
           </div>
 
         </div>
 
-        {/* OUTPUT AREA */}
-        <div className="mt-6">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-bold text-gray-800">Results ({count})</h3>
-            <button 
-              onClick={copyToClipboard}
-              disabled={!output}
-              className={`text-xs font-bold px-3 py-1 rounded ${!output ? 'bg-gray-200 text-gray-400' : 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer'}`}
-            >
-              Copy to Clipboard
-            </button>
-          </div>
-          <textarea
-            readOnly
-            className="w-full h-48 p-4 border border-gray-300 rounded-lg bg-slate-50 font-mono text-sm text-gray-700 focus:outline-none"
-            placeholder="Generated keywords will appear here..."
-            value={output}
-          />
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-indigo-500" />
+              PPC Strategy Guide
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-indigo-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Search className="w-5 h-5 text-indigo-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Broad vs. Phrase</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    <b>Broad:</b> Cheapest, high reach, but irrelevant clicks.
+                    <br/>
+                    <b>Phrase:</b> Balanced. Order matters. "Red Shoes" matches "Big Red Shoes".
+                    <br/>
+                    Use this tool to generate Phrase lists for better ROI.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Target className="w-5 h-5 text-emerald-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">The Exact Match Sniper</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Use the <b>[Exact]</b> mode for your high-converting keywords.
+                    <br/>
+                    If you know "Running Shoes Men" sells well, generate [Running Shoes Men] and bid high on it.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-blue-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Zap className="w-5 h-5 text-blue-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Negative Keywords</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    You can also use this tool to create <b>Negative Exact</b> lists.
+                    <br/>
+                    Mix "Free", "Cheap", "Used" in Col A with your product name in Col B to block bad traffic.
+                 </p>
+              </div>
+
+           </div>
         </div>
 
       </div>
-      <div className="mt-8 text-center text-gray-400 text-sm">Created by SmartRwl</div>
     </div>
   );
 }

@@ -1,154 +1,322 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { 
+  Users, 
+  Target, 
+  TrendingUp, 
+  AlertTriangle, 
+  CheckCircle2, 
+  DollarSign, 
+  Gift, 
+  Share2,
+  BookOpen,
+  Search,
+  MessageSquare
+} from 'lucide-react';
 
-export default function InfluencerCalculator() {
-  // Inputs
-  const [influencerFee, setInfluencerFee] = useState<number | ''>(''); // Fixed cost
-  const [sellingPrice, setSellingPrice] = useState<number | ''>('');
-  const [productCost, setProductCost] = useState<number | ''>(''); // Landed + Ship + Fees
-  const [discountPercent, setDiscountPercent] = useState<number | ''>(''); // Coupon code given to influencer
+export default function InfluencerAuditTool() {
+  // --- STATE ---
   
-  // Outputs
-  const [profitPerUnit, setProfitPerUnit] = useState<number>(0);
-  const [breakEvenUnits, setBreakEvenUnits] = useState<number>(0);
-  const [targetUnits, setTargetUnits] = useState<number>(0); // For 2x ROI
-  const [impossible, setImpossible] = useState(false);
+  // 1. Campaign Inputs
+  const [influencerFee, setInfluencerFee] = useState<number>(10000);
+  const [seedingCost, setSeedingCost] = useState<number>(500); // Cost of free product sent + shipping
+  const [followerCount, setFollowerCount] = useState<number>(50000);
+  const [estReach, setEstReach] = useState<number>(10); // % of followers who actually see the post (Story vs Reel)
 
+  // 2. Unit Economics
+  const [sellingPrice, setSellingPrice] = useState<number>(1500);
+  const [landedCost, setLandedCost] = useState<number>(600);
+  const [discountCode, setDiscountCode] = useState<number>(15); // % Discount given to followers
+
+  // 3. Outputs
+  const [metrics, setMetrics] = useState({
+    totalCampaignCost: 0,
+    profitPerUnit: 0,
+    breakEvenUnits: 0,
+    targetUnits2x: 0,
+    requiredConversion: 0, // % of viewers who must buy
+    cpm: 0, // Cost per 1000 views
+    status: 'neutral' as 'safe' | 'risky' | 'impossible'
+  });
+
+  // --- CALCULATION ENGINE ---
   useEffect(() => {
-    const fee = Number(influencerFee) || 0;
-    const sp = Number(sellingPrice) || 0;
-    const cp = Number(productCost) || 0;
-    const disc = Number(discountPercent) || 0;
+    // A. Costs
+    const totalCost = influencerFee + seedingCost;
+    
+    // B. Unit Economics (Post-Discount)
+    const discountedPrice = sellingPrice * (1 - discountCode / 100);
+    const margin = discountedPrice - landedCost;
 
-    if (sp > 0 && cp > 0) {
-      // 1. Calculate New Selling Price with Coupon
-      const discountedSP = sp - (sp * (disc / 100));
+    // C. Reach Calculation
+    const activeViewers = followerCount * (estReach / 100);
+
+    // D. Break Even Analysis
+    let beUnits = 0;
+    let targetUnits = 0;
+    let reqConv = 0;
+    let status: 'safe' | 'risky' | 'impossible' = 'safe';
+
+    if (margin > 0) {
+      beUnits = Math.ceil(totalCost / margin);
+      targetUnits = Math.ceil((totalCost * 2) / margin); // 2x ROAS goal
       
-      // 2. Calculate Profit Per Unit on Promo Sales
-      const margin = discountedSP - cp;
-      setProfitPerUnit(margin);
-
-      if (margin <= 0) {
-        setImpossible(true);
-        setBreakEvenUnits(0);
-        setTargetUnits(0);
-      } else {
-        setImpossible(false);
-        
-        // 3. Break Even Point
-        // Total Fee / Profit per Unit
-        const be = Math.ceil(fee / margin);
-        setBreakEvenUnits(be);
-
-        // 4. Target for 2x ROI (Double your money)
-        // (Fee * 2) / Profit per Unit
-        // Or: To make Fee back + Fee Profit
-        const target = Math.ceil((fee * 2) / margin);
-        setTargetUnits(target);
+      // The "Reality Check": Break Even Units / Active Viewers
+      if (activeViewers > 0) {
+        reqConv = (beUnits / activeViewers) * 100;
       }
     } else {
-      setProfitPerUnit(0);
-      setBreakEvenUnits(0);
-      setTargetUnits(0);
-      setImpossible(false);
+      status = 'impossible'; // Losing money on every sale
     }
-  }, [influencerFee, sellingPrice, productCost, discountPercent]);
+
+    // Status Logic based on Required Conversion Rate
+    if (status !== 'impossible') {
+      if (reqConv > 5) status = 'impossible'; // >5% CR is extremely rare on social
+      else if (reqConv > 2) status = 'risky'; // 2-5% is hard
+      else status = 'safe'; // <2% is achievable
+    }
+
+    // E. Ad Metrics (CPM)
+    const cpm = activeViewers > 0 ? (totalCost / activeViewers) * 1000 : 0;
+
+    setMetrics({
+      totalCampaignCost: totalCost,
+      profitPerUnit: margin,
+      breakEvenUnits: beUnits,
+      targetUnits2x: targetUnits,
+      requiredConversion: reqConv,
+      cpm,
+      status
+    });
+
+  }, [influencerFee, seedingCost, followerCount, estReach, sellingPrice, landedCost, discountCode]);
+
+  const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-8">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Influencer Campaign Planner
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Calculate how many sales an influencer needs to generate to be worth the cost.
-          </p>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Share2 className="w-8 h-8 text-pink-500" />
+              Influencer ROI Auditor
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Analyze campaign risk by calculating the "Reality Check" conversion rate.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+             <div className={`w-3 h-3 rounded-full ${metrics.status === 'safe' ? 'bg-emerald-500' : metrics.status === 'risky' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+             <span className="text-sm font-medium text-slate-300">
+                Risk Level: {metrics.status.toUpperCase()}
+             </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
           
-          {/* INPUTS */}
-          <div className="space-y-6">
-            <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-              <h3 className="font-bold text-purple-800 text-sm mb-3">1. Campaign Cost</h3>
-              <label className="block text-xs font-bold text-purple-600 mb-1">Influencer / Fixed Fee (₹)</label>
-              <input 
-                type="number" 
-                className="w-full p-2 border border-purple-200 rounded focus:ring-2 focus:ring-purple-500" 
-                placeholder="e.g. 5000"
-                value={influencerFee}
-                onChange={e => setInfluencerFee(Number(e.target.value))}
-              />
+          {/* --- LEFT: CONFIG (4 Cols) --- */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            {/* 1. Campaign Details */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <Users className="w-4 h-4 text-pink-400" /> Influencer Data
+               </h3>
+               
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Influencer Fee (₹)</label>
+                     <input type="number" value={influencerFee} onChange={e => setInfluencerFee(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-pink-500 outline-none" />
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Seeding Cost (₹)</label>
+                     <input type="number" value={seedingCost} onChange={e => setSeedingCost(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-pink-500 outline-none" />
+                     <p className="text-[10px] text-slate-500 mt-1">Cost of product sent + shipping</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Followers</label>
+                        <input type="number" value={followerCount} onChange={e => setFollowerCount(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm focus:border-pink-500 outline-none" />
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Est. Reach %</label>
+                        <input type="number" value={estReach} onChange={e => setEstReach(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm focus:border-pink-500 outline-none" />
+                     </div>
+                  </div>
+               </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
-              <h3 className="font-bold text-gray-700 text-sm">2. Product Economics</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Selling Price</label>
-                  <input type="number" className="w-full p-2 border rounded" value={sellingPrice} onChange={e => setSellingPrice(Number(e.target.value))} />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Total Cost (Product+Ship)</label>
-                  <input type="number" className="w-full p-2 border rounded" value={productCost} onChange={e => setProductCost(Number(e.target.value))} />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-500">Discount Code (%)</label>
-                <input type="number" className="w-full p-2 border rounded" placeholder="e.g. 10" value={discountPercent} onChange={e => setDiscountPercent(Number(e.target.value))} />
-                <p className="text-[10px] text-gray-400 mt-1">If you give them a code like "INFLUENCER10"</p>
-              </div>
+            {/* 2. Economics */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <DollarSign className="w-4 h-4 text-emerald-400" /> Offer Economics
+               </h3>
+               
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Selling Price</label>
+                     <input type="number" value={sellingPrice} onChange={e => setSellingPrice(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm outline-none" />
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Landed Cost</label>
+                     <input type="number" value={landedCost} onChange={e => setLandedCost(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm outline-none" />
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Discount Code (%)</label>
+                     <input type="number" value={discountCode} onChange={e => setDiscountCode(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm outline-none" />
+                  </div>
+               </div>
             </div>
+
           </div>
 
-          {/* RESULTS */}
-          <div className="flex flex-col justify-center space-y-6">
+          {/* --- RIGHT: INTELLIGENCE PANEL (8 Cols) --- */}
+          <div className="lg:col-span-8 space-y-6">
             
-            {impossible ? (
-              <div className="bg-red-100 text-red-800 p-6 rounded-xl text-center border border-red-200">
-                <h3 className="text-xl font-bold mb-2">❌ LOSS MAKING</h3>
-                <p>The discount is too high.</p>
-                <p className="text-sm mt-2">You lose ₹{Math.abs(profitPerUnit).toFixed(2)} on every single unit sold!</p>
-              </div>
-            ) : (
-              <>
-                {/* Break Even Card */}
-                <div className="bg-slate-800 text-white p-6 rounded-xl shadow-lg text-center transform hover:scale-105 transition-transform">
-                  <p className="text-xs text-slate-400 uppercase tracking-widest mb-2">Break-Even Sales Needed</p>
-                  <div className="text-5xl font-extrabold text-yellow-400">
-                    {breakEvenUnits} <span className="text-lg text-white">units</span>
+            {/* 1. Risk Gauge */}
+            <div className={`rounded-xl border p-8 flex flex-col md:flex-row gap-8 items-center justify-between ${
+               metrics.status === 'safe' ? 'bg-emerald-950/30 border-emerald-900' : 
+               metrics.status === 'risky' ? 'bg-yellow-950/30 border-yellow-900' : 
+               'bg-red-950/30 border-red-900'
+            }`}>
+               <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                     <Target className={`w-5 h-5 ${
+                        metrics.status === 'safe' ? 'text-emerald-400' : 
+                        metrics.status === 'risky' ? 'text-yellow-400' : 'text-red-400'
+                     }`} />
+                     <span className="text-sm font-bold uppercase tracking-wider text-slate-300">Required Conversion Rate</span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-2">
-                    To recover the ₹{influencerFee} fee (0 Profit)
-                  </p>
-                </div>
-
-                {/* Profitable Card */}
-                <div className="bg-green-600 text-white p-6 rounded-xl shadow-lg text-center">
-                  <p className="text-xs text-green-200 uppercase tracking-widest mb-2">Target for 2x ROI</p>
-                  <div className="text-4xl font-extrabold">
-                    {targetUnits} <span className="text-lg">units</span>
+                  <div className="text-5xl font-extrabold text-white">
+                     {metrics.requiredConversion.toFixed(2)}%
                   </div>
-                  <p className="text-xs text-green-100 mt-2">
-                    Sell this many to double your investment.
+                  <p className="text-sm text-slate-400">
+                     {metrics.requiredConversion.toFixed(1)}% of people who see the post must buy for you to break even.
                   </p>
-                </div>
+               </div>
 
-                <div className="text-center text-xs text-gray-500">
-                  <p>Profit per unit after discount: <strong>₹{profitPerUnit.toFixed(2)}</strong></p>
-                </div>
-              </>
-            )}
+               <div className="bg-slate-950/50 p-4 rounded-lg border border-white/10 w-full md:w-64 text-sm leading-relaxed text-slate-300">
+                  {metrics.status === 'safe' && <span className="text-emerald-400 font-bold">Good Deal.</span>}
+                  {metrics.status === 'risky' && <span className="text-yellow-400 font-bold">High Risk.</span>}
+                  {metrics.status === 'impossible' && <span className="text-red-400 font-bold">Impossible.</span>}
+                  <br/>
+                  {metrics.status === 'safe' ? ' This rate is achievable on Instagram/YouTube.' : 
+                   metrics.status === 'risky' ? ' This conversion rate is higher than average (1-2%).' : 
+                   ' Influencer campaigns rarely convert above 5%. Negotiate fee down.'}
+               </div>
+            </div>
+
+            {/* 2. Break Even Dashboard */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">Break Even Target</h3>
+                  <div className="flex items-baseline gap-2 mb-2">
+                     <span className="text-4xl font-bold text-white">{metrics.breakEvenUnits}</span>
+                     <span className="text-sm text-slate-400">units</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                     You must sell {metrics.breakEvenUnits} units just to cover the <b>{fmt(metrics.totalCampaignCost)}</b> campaign cost.
+                  </p>
+               </div>
+
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">Ad Efficiency (CPM)</h3>
+                  <div className="flex items-baseline gap-2 mb-2">
+                     <span className="text-4xl font-bold text-white">{fmt(metrics.cpm)}</span>
+                     <span className="text-sm text-slate-400">/ 1k views</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                     Compare this to Facebook Ads. (Avg FB CPM is ₹200-500). {metrics.cpm > 500 ? 'This is expensive.' : 'This is cheap visibility.'}
+                  </p>
+               </div>
+
+            </div>
+
+            {/* 3. Profit P&L */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+               <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">Campaign Goals</h3>
+               <div className="space-y-4">
+                  <div className="flex justify-between items-center p-3 bg-slate-950 rounded border border-slate-800">
+                     <div className="flex items-center gap-3">
+                        <Gift className="w-4 h-4 text-purple-400" />
+                        <span className="text-sm text-slate-300">Total Campaign Cost</span>
+                     </div>
+                     <span className="font-mono text-white">{fmt(metrics.totalCampaignCost)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-slate-950 rounded border border-slate-800">
+                     <div className="flex items-center gap-3">
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        <span className="text-sm text-slate-300">Profit Per Unit (After Disc.)</span>
+                     </div>
+                     <span className="font-mono text-white">{fmt(metrics.profitPerUnit)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-indigo-900/20 rounded border border-indigo-900/50">
+                     <div className="flex items-center gap-3">
+                        <Target className="w-4 h-4 text-indigo-400" />
+                        <span className="text-sm text-indigo-200">Units needed for 2x ROAS</span>
+                     </div>
+                     <span className="font-mono font-bold text-white">{metrics.targetUnits2x} Units</span>
+                  </div>
+               </div>
+            </div>
 
           </div>
 
         </div>
+
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-pink-500" />
+              Negotiation & Strategy Guide
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-pink-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <AlertTriangle className="w-5 h-5 text-pink-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">The 3% Rule</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Influencer conversion rates are usually <b>1% to 3%</b>. 
+                    <br/>
+                    If this tool shows you need a <b>5%+</b> conversion rate to break even, do NOT sign the deal. You will lose money. Negotiate the fee down until the required rate is under 2%.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Search className="w-5 h-5 text-emerald-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Followers vs. Reach</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    A person with 100k followers might only get 10k views on a Story (10% Reach).
+                    <br/>
+                    <b>Always ask for screenshots of their Story Views</b> before paying. Input that number into "Reach" for accurate math.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-indigo-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <MessageSquare className="w-5 h-5 text-indigo-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Seeding Cost Trap</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Don't forget the product cost! Sending a ₹2000 item + ₹100 shipping to 10 influencers costs ₹21,000 before you even pay them fees. Include this in the "Seeding Cost" field.
+                 </p>
+              </div>
+
+           </div>
+        </div>
+
       </div>
-      <div className="mt-8 text-center text-gray-400 text-sm">Created by SmartRwl</div>
     </div>
   );
 }
