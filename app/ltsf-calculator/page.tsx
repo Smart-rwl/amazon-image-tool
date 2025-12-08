@@ -1,195 +1,271 @@
 'use client';
 
 import React, { useState } from 'react';
-import { SparklesIcon, CalendarIcon, ArchiveBoxIcon, CurrencyRupeeIcon } from '@heroicons/react/24/solid';
+import { 
+  ArchiveBoxIcon, 
+  CurrencyRupeeIcon, 
+  CalendarIcon, 
+  SparklesIcon,
+  TrashIcon,
+  ArrowDownTrayIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/solid';
 
-// Standard FBA Storage Fee Rates (Approximate, as of late 2024/early 2025 - Metric: Per Cubic Foot)
-// Note: Amazon adjusts these based on category and time of year.
-const FBA_STORAGE_FEES = {
-  LONG_TERM_181_365: 6.90, // Rupees per cubic foot per month (Placeholder based on rough USD conversion/example)
-  LONG_TERM_365_PLUS: 23.00, // Rupees per cubic foot per month (Placeholder)
+// Updated Fee Rates (Hypothetical 2024/25 Rates for India/Global Average)
+const FBA_FEES = {
+  TIER_1_RATE: 6.90, // 181-365 Days (per cubic foot)
+  TIER_2_RATE: 23.00 // 365+ Days (per cubic foot)
 };
 
-interface InventoryItem {
-  sku: string;
-  volume_cbm: number; // Volume in Cubic Meters (CBM)
-  age_days: number;
-}
+// Conversion Factors
+const CBM_TO_CF = 35.315;
 
-export default function LTSFCalculator() {
-  const [itemsInput, setItemsInput] = useState(`
-SKU-X001, 0.005, 190
-SKU-Y002, 0.008, 300
-SKU-Z003, 0.012, 400
-  `.trim());
-  const [results, setResults] = useState<{ item: InventoryItem; fee_type: string; fee_amount: number }[]>([]);
-  const [totalLTSF, setTotalLTSF] = useState(0);
-  const [showGuide, setShowGuide] = useState(false);
+export default function InventoryAgeingTool() {
+  // --- STATE ---
+  const [inputData, setInputData] = useState(`SKU-001, 0.05, 190\nSKU-002, 0.02, 400\nSKU-003, 0.10, 150`);
+  const [results, setResults] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState({
+    totalFee: 0,
+    riskCount: 0,
+    criticalCount: 0,
+    totalVolumeCF: 0
+  });
 
-  // Conversion factor: 1 CBM is approximately 35.3147 cubic feet (CF)
-  const CBM_TO_CF = 35.3147;
+  // --- ENGINE ---
+  const processInventory = () => {
+    if (!inputData.trim()) return;
 
-  const calculateLTSF = () => {
-    const lines = itemsInput.split('\n').filter(line => line.trim() !== '');
-    const newResults: { item: InventoryItem; fee_type: string; fee_amount: number }[] = [];
-    let runningTotal = 0;
+    const lines = inputData.split('\n').filter(l => l.trim());
+    let total = 0;
+    let vol = 0;
+    let risk = 0;
+    let crit = 0;
 
-    for (const line of lines) {
-      const [sku, volumeStr, ageStr] = line.split(',').map(s => s.trim());
-      const volume_cbm = parseFloat(volumeStr);
-      const age_days = parseInt(ageStr, 10);
+    const processed = lines.map(line => {
+      // CSV Parsing: SKU, CBM, Days
+      const parts = line.split(',').map(s => s.trim());
+      if (parts.length < 3) return null;
 
-      if (sku && !isNaN(volume_cbm) && !isNaN(age_days)) {
-        const volume_cf = volume_cbm * CBM_TO_CF; // Volume in Cubic Feet
-        let fee_amount = 0;
-        let fee_type = 'No LTSF';
+      const sku = parts[0];
+      const cbm = parseFloat(parts[1]) || 0;
+      const days = parseInt(parts[2]) || 0;
+      const cf = cbm * CBM_TO_CF;
 
-        if (age_days > 365) {
-          fee_amount = volume_cf * FBA_STORAGE_FEES.LONG_TERM_365_PLUS;
-          fee_type = `Over 365 Days (${FBA_STORAGE_FEES.LONG_TERM_365_PLUS.toFixed(2)}/CF)`;
-        } else if (age_days > 180) {
-          fee_amount = volume_cf * FBA_STORAGE_FEES.LONG_TERM_181_365;
-          fee_type = `181-365 Days (${FBA_STORAGE_FEES.LONG_TERM_181_365.toFixed(2)}/CF)`;
-        }
-        
-        runningTotal += fee_amount;
+      let fee = 0;
+      let status = 'Safe';
+      let tier = 'None';
 
-        newResults.push({
-          item: { sku, volume_cbm, age_days },
-          fee_type,
-          fee_amount,
-        });
+      // Fee Logic
+      if (days > 365) {
+        fee = cf * FBA_FEES.TIER_2_RATE;
+        status = 'Critical';
+        tier = '365+ Days';
+        crit++;
+      } else if (days > 180) {
+        fee = cf * FBA_FEES.TIER_1_RATE;
+        status = 'At Risk';
+        tier = '181-365 Days';
+        risk++;
       }
-    }
 
-    setResults(newResults);
-    setTotalLTSF(runningTotal);
+      total += fee;
+      vol += cf;
+
+      return { sku, cbm, cf, days, fee, status, tier };
+    }).filter(item => item !== null);
+
+    setResults(processed);
+    setMetrics({
+      totalFee: total,
+      totalVolumeCF: vol,
+      riskCount: risk,
+      criticalCount: crit
+    });
+  };
+
+  const handleClear = () => {
+    setInputData('');
+    setResults([]);
+    setMetrics({ totalFee: 0, totalVolumeCF: 0, riskCount: 0, criticalCount: 0 });
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-5xl w-full bg-white p-8 rounded-xl shadow-lg space-y-8">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900 flex items-center justify-center gap-2">
-            <ArchiveBoxIcon className="w-8 h-8 text-indigo-600" />
-            FBA Long-Term Storage Fee (LTSF) Calculator
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Estimate the potential fees for slow-moving inventory in Amazon&apos;s fulfillment centers.
-          </p>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <ArchiveBoxIcon className="w-8 h-8 text-indigo-500" />
+              LTSF Liability Auditor
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Calculate Amazon Long-Term Storage Fees before they hit your account.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+             <div className="text-right">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Projected Liability</p>
+                <p className="text-2xl font-mono font-bold text-red-500">₹{metrics.totalFee.toFixed(2)}</p>
+             </div>
+          </div>
         </div>
 
-        {/* --- HOW TO USE SECTION --- */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
-          <button 
-            onClick={() => setShowGuide(!showGuide)}
-            className="w-full flex justify-between items-center p-4 text-blue-800 font-bold text-sm hover:bg-blue-100 transition-colors"
-          >
-            <span>📖 How to Use This Tool</span>
-            <svg className={`w-5 h-5 transition-transform ${showGuide ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-          </button>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
           
-          {showGuide && (
-            <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-2 bg-blue-50/50">
-              <p><strong>1. Get Data:</strong> Export your **FBA Inventory Age** report from Amazon Seller Central.</p>
-              <p><strong>2. Format Input:</strong> Paste your data into the box below using the format: **`SKU, Volume (CBM), Age (Days)`** with each item on a new line.</p>
-              <p><strong>3. Calculate:</strong> Click the button to see the estimated LTSF for each item based on current Amazon fee tiers (181-365 days and 365+ days).</p>
-              <p><strong>4. Act:</strong> Use the results to decide which items to **remove**, **liquidate**, or **run a discount** promotion for before the next fee charge date.</p>
-              <p className='text-xs italic mt-2'>*Note: Fee rates used are simplified placeholders. Always confirm the latest rates on Seller Central for final calculations.</p>
+          {/* --- LEFT: INPUT (4 Cols) --- */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 flex flex-col h-[500px]">
+               <div className="flex justify-between items-center mb-3">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Paste Inventory Data</label>
+                  <div className="flex gap-2">
+                     <button onClick={handleClear} className="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+                        <TrashIcon className="w-3 h-3" /> Clear
+                     </button>
+                  </div>
+               </div>
+               <textarea 
+                  value={inputData}
+                  onChange={e => setInputData(e.target.value)}
+                  className="flex-1 w-full bg-slate-950 border border-slate-800 rounded-lg p-4 text-sm font-mono text-slate-300 focus:border-indigo-500 outline-none resize-none leading-relaxed"
+                  placeholder="Format: SKU, Volume(CBM), Age(Days)&#10;Example:&#10;TSHIRT-RED-S, 0.002, 190&#10;MUG-BLACK, 0.015, 400"
+               />
+               <button 
+                  onClick={processInventory}
+                  className="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition flex items-center justify-center gap-2"
+               >
+                  <SparklesIcon className="w-4 h-4" /> Calculate Fees
+               </button>
             </div>
-          )}
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* INPUT AREA */}
-          <div className="lg:col-span-2 space-y-4">
-            <label className="block text-sm font-bold text-gray-700">Inventory Data (Format: SKU, CBM, Days Old)</label>
-            <textarea
-              className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm h-64 resize-none"
-              value={itemsInput}
-              onChange={(e) => setItemsInput(e.target.value)}
-              placeholder="Example:&#10;ITEM-A, 0.003, 190&#10;ITEM-B, 0.015, 380"
-            />
-            <button
-              onClick={calculateLTSF}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition-colors flex items-center justify-center gap-2"
-            >
-              <SparklesIcon className="w-5 h-5" />
-              Analyze Potential LTSF
-            </button>
+            {/* Fee Legend */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="font-bold text-white flex items-center gap-2 mb-4 text-sm">
+                  <CurrencyRupeeIcon className="w-4 h-4 text-emerald-400" /> Fee Structure (Monthly)
+               </h3>
+               <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center p-2 bg-slate-950 rounded border border-slate-800">
+                     <span className="text-slate-400">181 - 365 Days</span>
+                     <span className="font-mono text-yellow-400">₹{FBA_FEES.TIER_1_RATE.toFixed(2)} <span className="text-xs text-slate-600">/ ft³</span></span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-slate-950 rounded border border-slate-800">
+                     <span className="text-slate-400">365+ Days</span>
+                     <span className="font-mono text-red-400">₹{FBA_FEES.TIER_2_RATE.toFixed(2)} <span className="text-xs text-slate-600">/ ft³</span></span>
+                  </div>
+               </div>
+            </div>
+
           </div>
 
-          {/* SUMMARY / FEES */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="bg-white p-6 rounded-xl shadow-md border-2 border-indigo-200">
-              <h2 className="text-xl font-bold text-indigo-700 mb-4 flex items-center gap-2">
-                <CurrencyRupeeIcon className="w-6 h-6" />
-                LTSF Summary
-              </h2>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center pb-2 border-b">
-                  <span className="text-lg font-medium text-gray-800">Total Items Analyzed:</span>
-                  <span className="text-xl font-extrabold text-indigo-600">{results.length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xl font-bold text-gray-800">TOTAL ESTIMATED LTSF:</span>
-                  <span className="text-2xl font-extrabold text-red-600">₹{totalLTSF.toFixed(2)}</span>
-                </div>
+          {/* --- RIGHT: ANALYSIS (8 Cols) --- */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            {/* Metrics Dashboard */}
+            <div className="grid grid-cols-3 gap-4">
+               <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                  <span className="text-xs text-slate-500 uppercase font-bold block mb-1">Total Volume</span>
+                  <span className="text-xl font-mono text-white">{metrics.totalVolumeCF.toFixed(2)} <span className="text-sm text-slate-500">ft³</span></span>
+               </div>
+               <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 opacity-10"><ExclamationTriangleIcon className="w-12 h-12 text-yellow-500" /></div>
+                  <span className="text-xs text-yellow-500 uppercase font-bold block mb-1">At Risk SKUs</span>
+                  <span className="text-xl font-mono text-white">{metrics.riskCount}</span>
+               </div>
+               <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 opacity-10"><ExclamationTriangleIcon className="w-12 h-12 text-red-500" /></div>
+                  <span className="text-xs text-red-500 uppercase font-bold block mb-1">Critical SKUs</span>
+                  <span className="text-xl font-mono text-white">{metrics.criticalCount}</span>
+               </div>
+            </div>
+
+            {/* Results Table */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-2xl h-[500px] flex flex-col">
+               <div className="px-6 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                  <h3 className="font-bold text-slate-300 text-sm">Inventory Breakdown</h3>
+                  <button className="text-xs text-indigo-400 hover:text-white flex items-center gap-1">
+                     <ArrowDownTrayIcon className="w-3 h-3" /> Export CSV
+                  </button>
+               </div>
+               
+               <div className="overflow-auto flex-1">
+                  <table className="w-full text-left text-sm text-slate-400">
+                     <thead className="bg-slate-950 text-xs uppercase font-bold text-slate-500 sticky top-0 z-10">
+                        <tr>
+                           <th className="px-6 py-3 bg-slate-950">SKU</th>
+                           <th className="px-6 py-3 bg-slate-950">Age (Days)</th>
+                           <th className="px-6 py-3 bg-slate-950">Vol (ft³)</th>
+                           <th className="px-6 py-3 bg-slate-950">Fee Tier</th>
+                           <th className="px-6 py-3 bg-slate-950 text-right">Est. Fee</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-800">
+                        {results.length > 0 ? results.map((row, i) => (
+                           <tr key={i} className={`hover:bg-slate-800/50 transition ${row.status === 'Critical' ? 'bg-red-950/10' : row.status === 'At Risk' ? 'bg-yellow-950/10' : ''}`}>
+                              <td className="px-6 py-3 font-medium text-slate-200">{row.sku}</td>
+                              <td className="px-6 py-3 font-mono">{row.days}</td>
+                              <td className="px-6 py-3 font-mono">{row.cf.toFixed(2)}</td>
+                              <td className="px-6 py-3">
+                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                    row.status === 'Critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                    row.status === 'At Risk' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                                    'bg-slate-800 text-slate-500 border-slate-700'
+                                 }`}>
+                                    {row.tier}
+                                 </span>
+                              </td>
+                              <td className={`px-6 py-3 text-right font-mono font-bold ${row.fee > 0 ? 'text-white' : 'text-slate-600'}`}>
+                                 ₹{row.fee.toFixed(2)}
+                              </td>
+                           </tr>
+                        )) : (
+                           <tr>
+                              <td colSpan={5} className="text-center py-20 text-slate-600 italic">
+                                 No data processed yet. Paste CSV data on the left.
+                              </td>
+                           </tr>
+                        )}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <h3 className="font-bold text-white mb-2 flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-indigo-400" /> The 180-Day Cliff
+                 </h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Inventory aged over 180 days starts incurring Long-Term fees. These are charged monthly on the 15th. 
+                    <br/><b>Action:</b> Create a "Flash Sale" or "Removal Order" before day 179.
+                 </p>
               </div>
-            </div>
-
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-              <h3 className='font-bold flex items-center gap-1'>
-                <CalendarIcon className="w-4 h-4" />
-                Fee Tiers (Monthly Rate per Cubic Foot):
-              </h3>
-              <ul className='list-disc list-inside ml-4 mt-1 space-y-1'>
-                <li>**181-365 Days:** ₹{FBA_STORAGE_FEES.LONG_TERM_181_365.toFixed(2)}</li>
-                <li>**365+ Days:** ₹{FBA_STORAGE_FEES.LONG_TERM_365_PLUS.toFixed(2)}</li>
-              </ul>
-            </div>
-          </div>
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <h3 className="font-bold text-white mb-2 flex items-center gap-2">
+                    <TrashIcon className="w-4 h-4 text-red-400" /> Liquidation Strategy
+                 </h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    If the estimated fee is higher than your profit margin, it is cheaper to destroy or donate the stock than to keep it stored.
+                 </p>
+              </div>
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <h3 className="font-bold text-white mb-2 flex items-center gap-2">
+                    <SparklesIcon className="w-4 h-4 text-yellow-400" /> Aged Inventory Surcharge
+                 </h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Amazon recently added a surcharge for inventory aged 181-270 days. This tool groups them into the broader 181+ bucket for safety planning.
+                 </p>
+              </div>
+           </div>
         </div>
-        
-        {/* RESULTS TABLE */}
-        {results.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Detailed Item Breakdown</h2>
-            <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age (Days)</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume (CF)</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Tier</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Est. Monthly Fee (₹)</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {results.map((r, index) => (
-                    <tr key={index} className={r.fee_amount > 0 ? 'bg-red-50/50' : 'hover:bg-gray-50'}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.item.sku}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.item.age_days}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(r.item.volume_cbm * CBM_TO_CF).toFixed(4)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.fee_amount > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                          {r.fee_type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-gray-900">
-                        {r.fee_amount > 0 ? `₹${r.fee_amount.toFixed(2)}` : 'N/A'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );

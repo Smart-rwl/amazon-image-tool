@@ -1,188 +1,296 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { 
+  Calculator, 
+  TrendingUp, 
+  AlertTriangle, 
+  CheckCircle2, 
+  DollarSign, 
+  PieChart, 
+  Info,
+  BookOpen,
+  Target
+} from 'lucide-react';
 
-export default function PriceFinder() {
-  // Inputs
-  const [productCost, setProductCost] = useState<number | ''>(''); // Cost + Shipping + Packing
-  const [targetProfit, setTargetProfit] = useState<number | ''>('');
-  const [platformFeePercent, setPlatformFeePercent] = useState<number | ''>(''); // e.g. 15%
-  const [gstRate, setGstRate] = useState<number>(18);
+export default function StrategicPricingArchitect() {
+  // --- STATE ---
   
-  // Output
-  const [suggestedPrice, setSuggestedPrice] = useState<number>(0);
-  const [breakdown, setBreakdown] = useState<any>(null);
+  // 1. Costs & Goals
+  const [productCost, setProductCost] = useState<number>(400); // COGS + Shipping
+  const [targetMargin, setTargetMargin] = useState<number>(20); // Desired Net Margin %
+  const [platformFeePct, setPlatformFeePct] = useState<number>(15); // Amazon Referral Fee
+  const [gstRate, setGstRate] = useState<number>(18); // Tax Rate
 
+  // 2. Outputs
+  const [metrics, setMetrics] = useState({
+    suggestedPrice: 0,
+    psychologicalPrice: 0,
+    netProfit: 0,
+    breakEvenPrice: 0,
+    status: 'profitable' as 'profitable' | 'impossible'
+  });
+
+  // --- CALCULATION ENGINE ---
   useEffect(() => {
-    const cost = Number(productCost) || 0;
-    const profit = Number(targetProfit) || 0;
-    const feePct = Number(platformFeePercent) || 0;
+    // Formula derivation:
+    // Price = Cost + Profit + Fee + GST
+    // Profit = Price * Margin%
+    // Fee = Price * Fee%
+    // GST = (Price / (1+GST%)) * GST%  OR  Price - (Price/1.18)
+    
+    // Let P = Selling Price
+    // P = Cost + (P * Margin) + (P * Fee) + (P - P/(1+GST))
+    // P - (P * Margin) - (P * Fee) - (P - P/(1+GST)) = Cost
+    // P * [1 - Margin - Fee - (1 - 1/(1+GST))] = Cost
+    // P * [1/(1+GST) - Margin - Fee] = Cost
+    // P = Cost / [1/(1+GST) - Margin - Fee]
 
-    if (cost > 0 && profit > 0) {
-      // THE MATH (Reverse Calculation)
-      // SellingPrice (P)
-      // BasePrice = P / (1 + GST%)
-      // Fee = P * Fee%
-      // Profit = BasePrice - Cost - Fee
-      
-      // Rearranging to solve for P:
-      // Profit + Cost = P * [ (1 / (1 + GST)) - Fee% ]
-      
-      const gstDecimal = gstRate / 100;
-      const feeDecimal = feePct / 100;
+    const gstDec = gstRate / 100;
+    const marginDec = targetMargin / 100;
+    const feeDec = platformFeePct / 100;
 
-      const denominator = (1 / (1 + gstDecimal)) - feeDecimal;
+    const denominator = (1 / (1 + gstDec)) - marginDec - feeDec;
 
-      if (denominator <= 0) {
-        // This happens if Fees + Taxes are so high that profit is mathematically impossible
-        setSuggestedPrice(0);
-        setBreakdown(null);
-        return;
-      }
-
-      const calculatedPrice = (profit + cost) / denominator;
-      setSuggestedPrice(calculatedPrice);
-
-      // Verify the Breakdown for display
-      const feeAmount = calculatedPrice * feeDecimal;
-      const basePrice = calculatedPrice / (1 + gstDecimal);
-      const gstAmount = calculatedPrice - basePrice;
-
-      setBreakdown({
-        cost,
-        profit,
-        gst: gstAmount,
-        fees: feeAmount,
-        finalPrice: calculatedPrice
+    if (denominator <= 0) {
+      setMetrics({
+        suggestedPrice: 0,
+        psychologicalPrice: 0,
+        netProfit: 0,
+        breakEvenPrice: 0,
+        status: 'impossible'
       });
-    } else {
-      setSuggestedPrice(0);
-      setBreakdown(null);
+      return;
     }
-  }, [productCost, targetProfit, platformFeePercent, gstRate]);
+
+    const rawPrice = productCost / denominator;
+    
+    // Psychology Rounding (Ends in 99 or 9)
+    const roundTo99 = Math.ceil(rawPrice / 100) * 100 - 1; // e.g. 499
+    const roundTo9 = Math.ceil(rawPrice / 10) * 10 - 1; // e.g. 49
+    const psychPrice = rawPrice > 1000 ? roundTo99 : roundTo9;
+
+    // Recalculate Profit at Psych Price
+    const basePrice = psychPrice / (1 + gstDec);
+    const feeAmt = psychPrice * feeDec;
+    const actualProfit = basePrice - productCost - feeAmt; // Simplified check
+
+    // Break Even Price (Margin = 0)
+    const beDenominator = (1 / (1 + gstDec)) - feeDec;
+    const bePrice = productCost / beDenominator;
+
+    setMetrics({
+      suggestedPrice: rawPrice,
+      psychologicalPrice: psychPrice,
+      netProfit: actualProfit,
+      breakEvenPrice: bePrice,
+      status: 'profitable'
+    });
+
+  }, [productCost, targetMargin, platformFeePct, gstRate]);
+
+  const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-8">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Smart Price Finder
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Tell us your desired profit, we calculate the Selling Price for you.
-          </p>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Calculator className="w-8 h-8 text-emerald-500" />
+              Strategic Pricing Architect
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Reverse-engineer your perfect selling price based on profit goals.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 text-sm text-slate-400">
+             <Target className="w-4 h-4 text-emerald-500" />
+             <span>Goal: {targetMargin}% Net Margin</span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
           
-          {/* INPUTS */}
-          <div className="space-y-5 bg-blue-50 p-6 rounded-xl border border-blue-100">
-            <h3 className="font-bold text-gray-700">1. Your Costs & Goals</h3>
+          {/* --- LEFT: CONFIG (4 Cols) --- */}
+          <div className="lg:col-span-4 space-y-6">
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Total Product Cost (₹)</label>
-              <input
-                type="number"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="Purchase + Ship + Pack"
-                value={productCost}
-                onChange={(e) => setProductCost(Number(e.target.value))}
-              />
+            {/* 1. Cost Inputs */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <DollarSign className="w-4 h-4 text-blue-400" /> Cost Structure
+               </h3>
+               
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Total Product Cost</label>
+                     <input type="number" value={productCost} onChange={e => setProductCost(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none" />
+                     <p className="text-[10px] text-slate-500 mt-1">Manufacturing + Shipping + Packaging</p>
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Platform Referral Fee (%)</label>
+                     <input type="number" value={platformFeePct} onChange={e => setPlatformFeePct(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none" />
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">GST Rate (%)</label>
+                     <select value={gstRate} onChange={e => setGstRate(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm outline-none">
+                        <option value={0}>0%</option>
+                        <option value={5}>5%</option>
+                        <option value={12}>12%</option>
+                        <option value={18}>18%</option>
+                        <option value={28}>28%</option>
+                     </select>
+                  </div>
+               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Net Profit (₹)</label>
-              <input
-                type="number"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-green-50 border-green-200"
-                placeholder="How much you want to keep"
-                value={targetProfit}
-                onChange={(e) => setTargetProfit(Number(e.target.value))}
-              />
+            {/* 2. Goal Input */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <TrendingUp className="w-4 h-4 text-emerald-400" /> Profit Goal
+               </h3>
+               <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Desired Net Margin (%)</label>
+                  <div className="flex items-center gap-2">
+                     <input type="range" min="5" max="50" step="1" value={targetMargin} onChange={e => setTargetMargin(Number(e.target.value))} className="w-full accent-emerald-500" />
+                     <span className="text-white font-mono w-12 text-right">{targetMargin}%</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-2">
+                     Most healthy businesses aim for 15-25% net margin.
+                  </p>
+               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Marketplace Fee (%)</label>
-                <input
-                  type="number"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Avg 15-20%"
-                  value={platformFeePercent}
-                  onChange={(e) => setPlatformFeePercent(Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">GST Rate (%)</label>
-                <select
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  value={gstRate}
-                  onChange={(e) => setGstRate(Number(e.target.value))}
-                >
-                  <option value={5}>5%</option>
-                  <option value={12}>12%</option>
-                  <option value={18}>18%</option>
-                  <option value={28}>28%</option>
-                </select>
-              </div>
-            </div>
           </div>
 
-          {/* RESULTS */}
-          <div className="flex flex-col justify-center space-y-6">
+          {/* --- RIGHT: OUTPUT (8 Cols) --- */}
+          <div className="lg:col-span-8 space-y-6">
             
-            {suggestedPrice > 0 ? (
-              <>
-                <div className="bg-slate-800 text-white p-8 rounded-xl shadow-xl text-center transform scale-105 transition-transform">
-                  <p className="text-sm text-slate-400 uppercase tracking-widest mb-2">Recommended Selling Price</p>
-                  <p className="text-5xl font-extrabold text-green-400">
-                    ₹{Math.ceil(suggestedPrice)}
+            {metrics.status === 'impossible' ? (
+               <div className="h-full bg-red-950/20 border border-red-900 rounded-xl flex flex-col items-center justify-center p-8 text-center">
+                  <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
+                  <h2 className="text-2xl font-bold text-white">Mathematically Impossible</h2>
+                  <p className="text-slate-400 mt-2 max-w-md">
+                     Your costs and fees are too high to achieve a {targetMargin}% margin. Even if you raise the price infinitely, the fees and taxes scale with it.
                   </p>
-                  <p className="text-xs text-slate-500 mt-2">
-                    (Round up to ₹{Math.ceil(suggestedPrice / 10) * 10 - 1} for psychology)
-                  </p>
-                </div>
-
-                {breakdown && (
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm space-y-2 text-gray-600">
-                    <p className="font-bold border-b pb-2 mb-2 text-gray-800">Where the money goes:</p>
-                    <div className="flex justify-between">
-                      <span>Product Cost:</span>
-                      <span>₹{breakdown.cost.toFixed(2)}</span>
-                    </div>
-                     <div className="flex justify-between">
-                      <span>Amazon/Flipkart Fees:</span>
-                      <span className="text-red-500">- ₹{breakdown.fees.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>GST Amount:</span>
-                      <span className="text-red-500">- ₹{breakdown.gst.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between border-t pt-2 font-bold text-green-600 text-base">
-                      <span>Your Profit:</span>
-                      <span>₹{breakdown.profit.toFixed(2)}</span>
-                    </div>
-                  </div>
-                )}
-              </>
+                  <button onClick={() => setTargetMargin(10)} className="mt-6 px-6 py-2 bg-red-900 hover:bg-red-800 text-white rounded-lg transition">
+                     Try Lower Margin (10%)
+                  </button>
+               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center border-2 border-dashed border-gray-200 rounded-xl p-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <p>Enter your costs and goal profit to see the magic number.</p>
-              </div>
+               <>
+                  {/* 1. Main Price Card */}
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 border border-slate-700 shadow-2xl relative overflow-hidden">
+                     <div className="absolute top-0 right-0 p-6 opacity-5">
+                        <DollarSign className="w-64 h-64 text-white" />
+                     </div>
+                     
+                     <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                        <div>
+                           <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-2">Recommended Price</p>
+                           <div className="flex items-baseline gap-2">
+                              <span className="text-7xl font-extrabold text-white">{fmt(metrics.psychologicalPrice)}</span>
+                           </div>
+                           <p className="text-slate-400 text-sm mt-2">
+                              Exact Math: {fmt(metrics.suggestedPrice)} → Rounded for Conversion
+                           </p>
+                        </div>
+
+                        <div className="bg-slate-950/50 p-6 rounded-xl border border-white/5 min-w-[250px]">
+                           <div className="flex justify-between mb-2">
+                              <span className="text-slate-400 text-sm">Net Profit</span>
+                              <span className="text-emerald-400 font-bold">{fmt(metrics.netProfit)}</span>
+                           </div>
+                           <div className="flex justify-between">
+                              <span className="text-slate-400 text-sm">Break Even</span>
+                              <span className="text-yellow-400 font-bold">{fmt(metrics.breakEvenPrice)}</span>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* 2. Visual Breakdown */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                     <h3 className="text-xs font-bold uppercase text-slate-500 mb-6 flex items-center gap-2">
+                        <PieChart className="w-4 h-4" /> Revenue Distribution
+                     </h3>
+                     
+                     {/* Bar Chart */}
+                     <div className="flex h-12 w-full rounded-lg overflow-hidden font-bold text-xs text-white text-center leading-[3rem]">
+                        <div style={{ width: `${(productCost / metrics.psychologicalPrice) * 100}%` }} className="bg-blue-600">Cost</div>
+                        <div style={{ width: `${(metrics.psychologicalPrice * (platformFeePct/100) / metrics.psychologicalPrice) * 100}%` }} className="bg-orange-500">Fee</div>
+                        <div style={{ width: `${(metrics.psychologicalPrice - (metrics.psychologicalPrice/(1+gstRate/100))) / metrics.psychologicalPrice * 100}%` }} className="bg-purple-500">Tax</div>
+                        <div className="flex-1 bg-emerald-500">Profit</div>
+                     </div>
+
+                     <div className="flex flex-wrap gap-4 mt-4 text-xs text-slate-400 justify-between px-2">
+                        <div className="flex items-center gap-2">
+                           <div className="w-3 h-3 bg-blue-600 rounded-full"></div> Product Cost
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <div className="w-3 h-3 bg-orange-500 rounded-full"></div> Platform Fee
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <div className="w-3 h-3 bg-purple-500 rounded-full"></div> GST
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <div className="w-3 h-3 bg-emerald-500 rounded-full"></div> Your Profit
+                        </div>
+                     </div>
+                  </div>
+               </>
             )}
 
           </div>
 
         </div>
-      </div>
 
-      <div className="mt-8 text-center text-gray-400 text-sm">
-        Created by SmartRwl
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-emerald-500" />
+              Pricing Strategy Guide
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-blue-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Info className="w-5 h-5 text-blue-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">The "Reverse" Method</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Don't guess a price. Start with your profit goal. If the tool says you need to sell at ₹999 to make 20%, but competitors are at ₹499, your product is <b>not viable</b>.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Target className="w-5 h-5 text-emerald-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Psychological Pricing</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    We automatically round prices to end in <b>99</b> or <b>9</b>. 
+                    <br/>
+                    Research shows ₹499 sells significantly better than ₹480 or ₹500 due to the "left-digit effect."
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-yellow-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <CheckCircle2 className="w-5 h-5 text-yellow-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Break Even Point</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    The <b>Break Even Price</b> shown is the lowest you can go without losing money. Use this number when running Lightning Deals or Clearance sales.
+                 </p>
+              </div>
+
+           </div>
+        </div>
+
       </div>
     </div>
   );

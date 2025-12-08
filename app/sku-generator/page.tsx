@@ -1,218 +1,235 @@
 'use client';
 
 import React, { useState } from 'react';
+import { 
+  Barcode, 
+  Copy, 
+  Trash2, 
+  RefreshCw, 
+  Save, 
+  BookOpen,
+  Tag,
+  Box,
+  Layers
+} from 'lucide-react';
 
-export default function SkuGenerator() {
-  // Inputs
-  const [brand, setBrand] = useState('');
-  const [category, setCategory] = useState('');
-  const [color, setColor] = useState('');
-  const [size, setSize] = useState('');
+type SkuRecord = {
+  id: number;
+  sku: string;
+  desc: string;
+};
+
+export default function InventoryArchitect() {
+  // --- STATE ---
+  const [prefix, setPrefix] = useState(''); // Brand or Category Code
+  const [attributes, setAttributes] = useState([
+    { id: 1, label: 'Product Type', value: '' },
+    { id: 2, label: 'Color', value: '' },
+    { id: 3, label: 'Size', value: '' }
+  ]);
   const [separator, setSeparator] = useState('-');
-  
-  // Bulk Mode
   const [generatedSku, setGeneratedSku] = useState('');
-  const [skuHistory, setSkuHistory] = useState<string[]>([]);
-  const [showGuide, setShowGuide] = useState(false);
+  const [history, setHistory] = useState<SkuRecord[]>([]);
 
+  // --- ENGINE ---
   const generate = () => {
-    // Basic Validation
-    if (!brand || !category) {
-      alert("Please enter at least Brand and Category.");
-      return;
-    }
-
-    // Clean inputs: Uppercase, remove spaces
-    const clean = (text: string) => text.trim().toUpperCase().replace(/\s+/g, '');
+    // 1. Clean Inputs (Upper case, remove spaces, remove special chars)
+    const clean = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
     
-    const parts = [
-      clean(brand).substring(0, 4), // Take first 4 letters of Brand
-      clean(category),
-      clean(color),
-      clean(size)
-    ].filter(p => p.length > 0); // Remove empty parts
+    // 2. Build Parts
+    // Logic: If prefix is long (>4 chars), take first 3 chars. Else take full.
+    const p = clean(prefix);
+    const prefixPart = p.length > 4 ? p.substring(0, 3) : p;
 
-    const result = parts.join(separator);
-    setGeneratedSku(result);
-    
-    // Add to history
-    setSkuHistory([result, ...skuHistory]);
+    const attrParts = attributes.map(a => {
+      const val = clean(a.value);
+      // Smart Shorten: If value is "Medium", return "MED"
+      if (['SMALL','MEDIUM','LARGE'].includes(val)) return val.substring(0,1); // S, M, L
+      return val;
+    }).filter(s => s.length > 0);
+
+    const fullParts = [prefixPart, ...attrParts];
+    const finalSku = fullParts.join(separator);
+
+    setGeneratedSku(finalSku);
   };
 
-  const clear = () => {
-    setBrand('');
-    setCategory('');
-    setColor('');
-    setSize('');
+  const saveToHistory = () => {
+    if (!generatedSku) return;
+    const desc = `${prefix} ${attributes.map(a=>a.value).join(' ')}`;
+    setHistory([{ id: Date.now(), sku: generatedSku, desc }, ...history]);
+    // Clear inputs for next item (keep prefix usually)
+    setAttributes(attributes.map(a => ({ ...a, value: '' })));
     setGeneratedSku('');
   };
 
-  const copySku = (text: string) => {
+  const handleAttrChange = (id: number, val: string) => {
+    setAttributes(attributes.map(a => a.id === id ? { ...a, value: val } : a));
+  };
+
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert(`Copied: ${text}`);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-6">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Smart SKU Generator
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Create standardized Stock Keeping Units (SKUs) for your inventory.
-          </p>
-        </div>
-
-        {/* --- HOW TO USE SECTION (Collapsible) --- */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
-          <button 
-            onClick={() => setShowGuide(!showGuide)}
-            className="w-full flex justify-between items-center p-4 text-blue-800 font-bold text-sm hover:bg-blue-100 transition-colors"
-          >
-            <span>📖 How to Use This Tool</span>
-            <svg className={`w-5 h-5 transition-transform ${showGuide ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-          </button>
-          
-          {showGuide && (
-            <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-2 bg-blue-50/50">
-              <p><strong>1. Enter Details:</strong> Fill in the Brand, Category (e.g., Shirt), Color, and Size.</p>
-              <p><strong>2. Auto-Formatting:</strong> The tool automatically converts text to UPPERCASE and removes spaces.</p>
-              <p><strong>3. Brand Shortening:</strong> It intelligently takes only the first 4 letters of your Brand to save space (e.g., &quot;NIKE&quot; &rarr; &quot;NIKE&quot;).</p>
-              <p><strong>4. Generate:</strong> Click the button to create your unique code.</p>
-              <p><strong>Why use this?</strong> Consistent SKUs (like <code>NIKE-SHIRT-RED-L</code>) help warehouse staff find products faster than random names.</p>
-            </div>
-          )}
-        </div>
-
-        {/* INPUT GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Brand Code</label>
-              <input 
-                type="text" 
-                className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 uppercase"
-                placeholder="e.g. Adidas"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Product Type</label>
-              <input 
-                type="text" 
-                className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 uppercase"
-                placeholder="e.g. Polo"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Color</label>
-                <input 
-                  type="text" 
-                  className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 uppercase"
-                  placeholder="e.g. Red"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Size / Variant</label>
-                <input 
-                  type="text" 
-                  className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 uppercase"
-                  placeholder="e.g. XL"
-                  value={size}
-                  onChange={(e) => setSize(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">Separator Style</label>
-              <div className="flex space-x-4">
-                <label className="flex items-center text-sm cursor-pointer">
-                  <input type="radio" name="sep" className="mr-2" checked={separator === '-'} onChange={() => setSeparator('-')} />
-                  Dash ( A-B-C )
-                </label>
-                <label className="flex items-center text-sm cursor-pointer">
-                  <input type="radio" name="sep" className="mr-2" checked={separator === '_'} onChange={() => setSeparator('_')} />
-                  Underscore ( A_B_C )
-                </label>
-                <label className="flex items-center text-sm cursor-pointer">
-                  <input type="radio" name="sep" className="mr-2" checked={separator === ''} onChange={() => setSeparator('')} />
-                  None ( ABC )
-                </label>
-              </div>
-            </div>
-
-            <div className="flex space-x-3 pt-2">
-              <button 
-                onClick={generate}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition-transform transform active:scale-95"
-              >
-                Generate SKU
-              </button>
-              <button 
-                onClick={clear}
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-lg"
-              >
-                Reset
-              </button>
-            </div>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Barcode className="w-8 h-8 text-indigo-500" />
+              Inventory System Architect
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Generate standardized, readable SKUs for warehouse efficiency.
+            </p>
           </div>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+             <Layers className="w-4 h-4 text-emerald-500" />
+             <span className="text-sm font-medium text-slate-300">Format: Brand{separator}Type{separator}Var</span>
+          </div>
+        </div>
 
-          {/* RESULTS */}
-          <div className="flex flex-col space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
+          
+          {/* --- LEFT: BUILDER (5 Cols) --- */}
+          <div className="lg:col-span-5 space-y-6">
             
-            {/* Main Result */}
-            <div className="bg-slate-900 text-white p-8 rounded-xl shadow-xl text-center flex flex-col items-center justify-center">
-              <p className="text-xs text-slate-400 uppercase tracking-widest mb-4">Your SKU</p>
-              {generatedSku ? (
-                <div 
-                  className="text-3xl md:text-4xl font-mono font-extrabold text-green-400 break-all cursor-pointer hover:text-green-300 transition-colors"
-                  onClick={() => copySku(generatedSku)}
-                  title="Click to Copy"
-                >
-                  {generatedSku}
-                </div>
-              ) : (
-                <div className="text-slate-600 italic">...</div>
-              )}
-              {generatedSku && <p className="text-[10px] text-slate-500 mt-2">Click SKU to Copy</p>}
+            {/* Core Inputs */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <Tag className="w-4 h-4 text-blue-400" /> SKU Components
+               </h3>
+               
+               <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Brand / Category Prefix</label>
+                     <input 
+                        type="text" 
+                        value={prefix} 
+                        onChange={e => setPrefix(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono uppercase focus:border-indigo-500 outline-none"
+                        placeholder="e.g. NIKE"
+                     />
+                  </div>
+
+                  {attributes.map((attr, i) => (
+                     <div key={attr.id}>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{attr.label}</label>
+                        <input 
+                           type="text" 
+                           value={attr.value} 
+                           onChange={e => handleAttrChange(attr.id, e.target.value)} 
+                           className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono uppercase focus:border-blue-500 outline-none"
+                           placeholder={i === 0 ? "e.g. SHIRT" : i === 1 ? "e.g. RED" : "e.g. LARGE"}
+                        />
+                     </div>
+                  ))}
+               </div>
+
+               <div className="mt-6 pt-4 border-t border-slate-800">
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Separator Style</label>
+                  <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-700">
+                     {['-', '_', '/', ''].map((sep) => (
+                        <button 
+                           key={sep}
+                           onClick={() => setSeparator(sep)}
+                           className={`flex-1 py-1.5 text-xs font-mono rounded ${separator === sep ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                        >
+                           {sep === '' ? 'None' : sep}
+                        </button>
+                     ))}
+                  </div>
+               </div>
             </div>
 
-            {/* History */}
-            {skuHistory.length > 0 && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-48 overflow-y-auto">
-                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Recent SKUs</h4>
-                <ul className="space-y-1">
-                  {skuHistory.map((sku, idx) => (
-                    <li key={idx} className="flex justify-between items-center text-sm bg-white p-2 rounded border border-gray-100 shadow-sm">
-                      <span className="font-mono text-gray-700">{sku}</span>
-                      <button 
-                        onClick={() => copySku(sku)}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-bold"
-                      >
-                        Copy
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {/* Actions */}
+            <div className="flex gap-3">
+               <button 
+                  onClick={generate}
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition flex items-center justify-center gap-2"
+               >
+                  <RefreshCw className="w-4 h-4" /> Preview
+               </button>
+               <button 
+                  onClick={() => { setPrefix(''); setAttributes(attributes.map(a => ({...a, value:''}))); setGeneratedSku(''); }}
+                  className="px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 transition"
+               >
+                  <Trash2 className="w-4 h-4" />
+               </button>
+            </div>
+
+          </div>
+
+          {/* --- RIGHT: OUTPUT & HISTORY (7 Cols) --- */}
+          <div className="lg:col-span-7 space-y-6">
+            
+            {/* Live Preview */}
+            <div className="bg-gradient-to-br from-slate-900 to-indigo-950/30 rounded-xl border border-slate-800 p-8 flex flex-col items-center justify-center relative overflow-hidden h-[200px]">
+               <div className="absolute top-0 right-0 p-4 opacity-5">
+                  <Barcode className="w-32 h-32 text-white" />
+               </div>
+               
+               <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">Generated SKU</p>
+               {generatedSku ? (
+                  <div className="flex flex-col items-center gap-4 z-10">
+                     <div 
+                        onClick={() => copyToClipboard(generatedSku)}
+                        className="text-4xl md:text-5xl font-mono font-black text-white tracking-tight cursor-pointer hover:scale-105 transition-transform"
+                     >
+                        {generatedSku}
+                     </div>
+                     <button 
+                        onClick={saveToHistory}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full text-sm font-bold shadow-lg shadow-emerald-900/20 transition"
+                     >
+                        <Save className="w-4 h-4" /> Save to List
+                     </button>
+                  </div>
+               ) : (
+                  <div className="text-slate-600 font-mono text-xl">Waiting for input...</div>
+               )}
+            </div>
+
+            {/* History List */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex flex-col h-[400px]">
+               <div className="px-6 py-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                     <BookOpen className="w-4 h-4 text-slate-400" /> SKU Log
+                  </h3>
+                  <span className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400">{history.length} items</span>
+               </div>
+               
+               <div className="overflow-y-auto flex-1 p-2 space-y-2">
+                  {history.length > 0 ? history.map((item) => (
+                     <div key={item.id} className="flex items-center justify-between p-3 hover:bg-slate-800 rounded-lg group transition">
+                        <div>
+                           <div className="font-mono text-white font-bold text-lg">{item.sku}</div>
+                           <div className="text-xs text-slate-500 uppercase">{item.desc}</div>
+                        </div>
+                        <button 
+                           onClick={() => copyToClipboard(item.sku)}
+                           className="text-slate-500 hover:text-white p-2"
+                        >
+                           <Copy className="w-4 h-4" />
+                        </button>
+                     </div>
+                  )) : (
+                     <div className="h-full flex flex-col items-center justify-center text-slate-600">
+                        <Box className="w-12 h-12 mb-2 opacity-20" />
+                        <p className="text-sm">No SKUs saved yet.</p>
+                     </div>
+                  )}
+               </div>
+            </div>
 
           </div>
 
         </div>
+
       </div>
-      <div className="mt-8 text-center text-gray-400 text-sm">Created by SmartRwl</div>
     </div>
   );
 }

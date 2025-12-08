@@ -1,182 +1,237 @@
 'use client';
 
 import React, { useState } from 'react';
+import { 
+  Smartphone, 
+  Monitor, 
+  Type, 
+  Trash2, 
+  Copy, 
+  CheckCircle2, 
+  AlertTriangle,
+  BookOpen,
+  Search
+} from 'lucide-react';
 
-export default function TitleOptimizer() {
+const MAX_DESKTOP = 200;
+const MAX_MOBILE = 80;
+
+export default function ListingTitleArchitect() {
+  // --- STATE ---
   const [title, setTitle] = useState('');
-  const [showGuide, setShowGuide] = useState(false); // State for the How-To toggle
   
-  // Amazon limit recommendations
-  const MAX_DESKTOP = 200;
-  const MAX_MOBILE = 80;
-
-  const handleTitleCase = () => {
-    // Basic Title Case: Capitalize first letter of every word
-    const formatted = title.toLowerCase().split(' ').map(word => {
-      return word.charAt(0).toUpperCase() + word.slice(1);
-    }).join(' ');
-    setTitle(formatted);
-  };
-
-  const handleUpperCase = () => {
-    setTitle(title.toUpperCase());
-  };
-
-  const handleClear = () => {
-    setTitle('');
-  };
-
+  // --- METRICS ---
   const charCount = title.length;
   const wordCount = title.trim().split(/\s+/).filter(w => w.length > 0).length;
   
-  // Progress bar calculation
+  // Progress Bar Logic
   const progressPercent = Math.min((charCount / MAX_DESKTOP) * 100, 100);
-  let progressColor = 'bg-green-500';
-  if (charCount > MAX_MOBILE && charCount <= MAX_DESKTOP) progressColor = 'bg-blue-500';
-  if (charCount > MAX_DESKTOP) progressColor = 'bg-red-500';
+  let progressColor = 'bg-emerald-500'; // Good length
+  if (charCount > MAX_MOBILE && charCount <= MAX_DESKTOP) progressColor = 'bg-blue-500'; // Desktop Only range
+  if (charCount > MAX_DESKTOP) progressColor = 'bg-red-500'; // Violation
+
+  // --- ACTIONS ---
+  const handleTitleCase = () => {
+    // Advanced Title Case: Lowercase minor words unless first word
+    const minorWords = ['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'from', 'by', 'in', 'of', 'with'];
+    
+    const formatted = title.toLowerCase().split(' ').map((word, index) => {
+      if (index > 0 && minorWords.includes(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+    
+    setTitle(formatted);
+  };
+
+  const handleUpperCase = () => setTitle(title.toUpperCase());
+  
+  const handleCopy = () => navigator.clipboard.writeText(title);
+  
+  const handleClear = () => setTitle('');
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-6">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Amazon Title Optimizer
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Format your title and check mobile visibility limits.
-          </p>
-        </div>
-
-        {/* --- NEW: HOW TO USE SECTION --- */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
-          <button 
-            onClick={() => setShowGuide(!showGuide)}
-            className="w-full flex justify-between items-center p-4 text-blue-800 font-bold text-sm hover:bg-blue-100 transition-colors"
-          >
-            <span>📖 How to Use & Amazon Guidelines</span>
-            <svg className={`w-5 h-5 transition-transform ${showGuide ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-          </button>
-          
-          {showGuide && (
-            <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-3 bg-blue-50/50">
-              <p><strong>1. Enter your Draft:</strong> Paste your raw title in the box below.</p>
-              <p><strong>2. Check Mobile Limit:</strong> Ensure your main keywords (Brand, Product Name, Size) are in the first <span className="bg-yellow-200 px-1 rounded">80 characters</span>. This is all mobile users see.</p>
-              <p><strong>3. Format Correctly:</strong> Click <strong>"Convert to Title Case"</strong>. Amazon requires the first letter of every word to be capitalized.</p>
-              <ul className="list-disc list-inside pl-2 space-y-1 text-xs text-blue-700 mt-2">
-                <li>❌ Do not use ALL CAPS.</li>
-                <li>❌ Do not use promotional phrases like "Best Seller" or "Free Shipping".</li>
-                <li>❌ Do not use special characters like ~ ! ? $</li>
-                <li>✅ Use numerals (e.g., "3" instead of "Three").</li>
-              </ul>
-            </div>
-          )}
-        </div>
-        {/* --- END HOW TO USE SECTION --- */}
-
-        {/* INPUT AREA */}
-        <div className="space-y-2">
-          <label className="block text-sm font-bold text-gray-700">
-            Product Title
-          </label>
-          <textarea
-            className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg text-gray-800"
-            placeholder="e.g. nike mens running shoes red size 10..."
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-
-        {/* CONTROLS */}
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={handleTitleCase}
-            className="px-4 py-2 bg-blue-100 text-blue-700 font-bold rounded hover:bg-blue-200 transition-colors"
-          >
-            Convert to Title Case
-          </button>
-          <button
-            onClick={handleUpperCase}
-            className="px-4 py-2 bg-gray-100 text-gray-700 font-bold rounded hover:bg-gray-200 transition-colors"
-          >
-            UPPER CASE
-          </button>
-          <button
-            onClick={handleClear}
-            className="px-4 py-2 text-red-600 hover:bg-red-50 rounded transition-colors ml-auto"
-          >
-            Clear
-          </button>
-        </div>
-
-        {/* ANALYSIS BAR */}
-        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
-          
-          <div className="flex justify-between items-end">
-            <div>
-              <span className="text-4xl font-extrabold text-slate-700">{charCount}</span>
-              <span className="text-sm text-slate-400 ml-1">chars</span>
-            </div>
-            <div className="text-right">
-              <span className="text-xl font-bold text-slate-600">{wordCount}</span>
-              <span className="text-sm text-slate-400 ml-1">words</span>
-            </div>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Type className="w-8 h-8 text-indigo-500" />
+              Listing Title Architect
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Optimize product titles for Amazon SEO & Mobile conversion.
+            </p>
           </div>
-
-          {/* Progress Bar */}
-          <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden relative">
-            <div 
-              className={`h-4 rounded-full transition-all duration-300 ${progressColor}`} 
-              style={{ width: `${progressPercent}%` }}
-            ></div>
-            {/* Markers for Mobile and Desktop limits */}
-            <div className="absolute top-0 bottom-0 w-0.5 bg-black opacity-20" style={{ left: `${(MAX_MOBILE / MAX_DESKTOP) * 100}%` }}></div>
-            <div className="absolute top-0 bottom-0 w-0.5 bg-red-500" style={{ left: '100%' }}></div>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 text-sm text-slate-400">
+             <Smartphone className="w-4 h-4 text-emerald-500" />
+             <span>Mobile Limit: 80 Chars</span>
           </div>
+        </div>
 
-          {/* LIMIT LEGEND */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
+          
+          {/* --- LEFT: EDITOR (8 Cols) --- */}
+          <div className="lg:col-span-8 space-y-6">
             
-            {/* Mobile Status */}
-            <div className={`p-3 rounded border ${charCount <= MAX_MOBILE ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
-              <p className="font-bold text-gray-700">Mobile View (First 80 chars)</p>
-              {charCount <= MAX_MOBILE ? (
-                <p className="text-green-600 text-xs">✅ Perfect! Your full title shows on mobile.</p>
-              ) : (
-                <p className="text-yellow-700 text-xs">⚠️ Your title gets cut off. Ensure main keywords are at the start.</p>
-              )}
+            {/* Input Area */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-1">
+               <textarea 
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full h-40 bg-slate-950 border border-transparent rounded-lg p-6 text-lg text-white placeholder-slate-600 focus:border-indigo-500 focus:ring-0 outline-none resize-none leading-relaxed shadow-inner"
+                  placeholder="Start typing your product title here... e.g. NIKE Men's Running Shoes Air Zoom Pegasus 39..."
+               />
+               
+               {/* Toolbar */}
+               <div className="bg-slate-900 p-3 flex gap-2 border-t border-slate-800 rounded-b-lg">
+                  <button onClick={handleTitleCase} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-300 transition">
+                     Title Case
+                  </button>
+                  <button onClick={handleUpperCase} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-300 transition">
+                     UPPERCASE
+                  </button>
+                  <div className="flex-1"></div>
+                  <button onClick={handleCopy} className="p-2 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition" title="Copy">
+                     <Copy className="w-4 h-4" />
+                  </button>
+                  <button onClick={handleClear} className="p-2 hover:bg-red-900/30 rounded text-slate-400 hover:text-red-400 transition" title="Clear">
+                     <Trash2 className="w-4 h-4" />
+                  </button>
+               </div>
             </div>
 
-            {/* Desktop Status */}
-            <div className={`p-3 rounded border ${charCount <= MAX_DESKTOP ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-              <p className="font-bold text-gray-700">Desktop Limit (200 chars)</p>
-              {charCount <= MAX_DESKTOP ? (
-                <p className="text-green-600 text-xs">✅ Good. Within Amazon limits.</p>
-              ) : (
-                <p className="text-red-700 text-xs">❌ Too Long! Amazon may suppress this listing.</p>
-              )}
+            {/* Analysis Bar */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+               <div className="flex justify-between items-end mb-4">
+                  <div>
+                     <span className="text-5xl font-extrabold text-white">{charCount}</span>
+                     <span className="text-sm text-slate-500 ml-2 font-bold uppercase tracking-wider">Characters</span>
+                  </div>
+                  <div className="text-right">
+                     <span className="text-xl font-bold text-slate-400">{wordCount}</span>
+                     <span className="text-xs text-slate-600 ml-1 font-bold uppercase">Words</span>
+                  </div>
+               </div>
+
+               {/* Progress Bar */}
+               <div className="relative h-6 bg-slate-950 rounded-full border border-slate-800 overflow-hidden">
+                  <div 
+                     className={`h-full transition-all duration-500 ease-out ${progressColor}`} 
+                     style={{ width: `${progressPercent}%` }}
+                  ></div>
+                  
+                  {/* Markers */}
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-white/20 z-10" style={{ left: `${(MAX_MOBILE / MAX_DESKTOP) * 100}%` }} title="Mobile Cutoff"></div>
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: '100%' }} title="Max Limit"></div>
+               </div>
+               
+               <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-wider">
+                  <span>0</span>
+                  <span className="text-emerald-400">Mobile (80)</span>
+                  <span className="text-blue-400">Desktop (200)</span>
+               </div>
             </div>
+
+            {/* Mobile Preview Simulation */}
+            <div className="bg-white rounded-xl border-4 border-slate-800 overflow-hidden max-w-sm mx-auto shadow-2xl">
+               <div className="bg-slate-100 border-b p-3 flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-500">Amazon Mobile App</span>
+                  <Smartphone className="w-4 h-4 text-slate-400" />
+               </div>
+               <div className="p-4 flex gap-3">
+                  <div className="w-24 h-24 bg-slate-200 rounded-lg shrink-0"></div>
+                  <div>
+                     <div className="text-sm text-gray-900 leading-snug font-sans line-clamp-3 mb-1">
+                        {title || "Your Product Title..."}
+                     </div>
+                     <div className="text-xs text-slate-500 mb-1">by Your Brand</div>
+                     <div className="flex items-center gap-1">
+                        <div className="flex text-yellow-400 text-xs">★★★★☆</div>
+                        <span className="text-xs text-cyan-600">1,204</span>
+                     </div>
+                     <div className="text-lg font-bold text-gray-900 mt-1">₹1,499</div>
+                  </div>
+               </div>
+            </div>
+
           </div>
 
-        </div>
+          {/* --- RIGHT: GUIDELINES (4 Cols) --- */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            {/* Status Cards */}
+            <div className={`p-5 rounded-xl border flex items-start gap-3 ${
+               charCount <= MAX_MOBILE ? 'bg-emerald-950/30 border-emerald-900' : 'bg-slate-900 border-slate-800'
+            }`}>
+               <div className={`mt-1 ${charCount <= MAX_MOBILE ? 'text-emerald-400' : 'text-slate-500'}`}>
+                  {charCount <= MAX_MOBILE ? <CheckCircle2 className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
+               </div>
+               <div>
+                  <h3 className={`font-bold text-sm ${charCount <= MAX_MOBILE ? 'text-emerald-400' : 'text-slate-300'}`}>Mobile Optimized</h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                     Ideally, keep your most important keywords in the first 80 characters.
+                  </p>
+               </div>
+            </div>
 
-        {/* MOBILE PREVIEW */}
-        <div className="mt-4">
-          <p className="text-xs text-gray-500 font-bold uppercase mb-2">Mobile Search Preview</p>
-          <div className="flex items-start p-3 border border-gray-200 rounded-lg shadow-sm max-w-sm">
-             <div className="h-20 w-20 bg-gray-200 rounded mr-3 flex-shrink-0"></div>
-             <div>
-               <p className="text-sm text-gray-900 leading-snug line-clamp-3 overflow-hidden" style={{ maxHeight: '3.6em' }}>
-                 {title || "Your Product Title Will Appear Here..."}
-               </p>
-               <p className="text-xs text-gray-500 mt-1">₹999 <span className="text-orange-400">★★★★☆</span></p>
-             </div>
+            <div className={`p-5 rounded-xl border flex items-start gap-3 ${
+               charCount > MAX_MOBILE && charCount <= MAX_DESKTOP ? 'bg-blue-950/30 border-blue-900' : 'bg-slate-900 border-slate-800'
+            }`}>
+               <div className={`mt-1 ${charCount > MAX_MOBILE && charCount <= MAX_DESKTOP ? 'text-blue-400' : 'text-slate-500'}`}>
+                  {charCount > MAX_MOBILE && charCount <= MAX_DESKTOP ? <CheckCircle2 className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+               </div>
+               <div>
+                  <h3 className={`font-bold text-sm ${charCount > MAX_MOBILE && charCount <= MAX_DESKTOP ? 'text-blue-400' : 'text-slate-300'}`}>Desktop Friendly</h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                     Desktop allows up to 200 chars. Use this space for secondary keywords.
+                  </p>
+               </div>
+            </div>
+
+            {charCount > MAX_DESKTOP && (
+               <div className="p-5 rounded-xl border bg-red-950/30 border-red-900 flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-500 mt-1" />
+                  <div>
+                     <h3 className="font-bold text-sm text-red-400">Suppression Risk</h3>
+                     <p className="text-xs text-red-200/70 mt-1 leading-relaxed">
+                        Titles over 200 characters may be suppressed from search results by Amazon's algorithm. Shorten it!
+                     </p>
+                  </div>
+               </div>
+            )}
+
+            {/* Guide */}
+            <div className="bg-indigo-900/10 border border-indigo-900/50 rounded-xl p-6">
+               <h3 className="text-xs font-bold uppercase text-indigo-300 mb-4 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4" /> Amazon Style Guide
+               </h3>
+               <ul className="space-y-3">
+                  <li className="flex gap-2 text-xs text-slate-400">
+                     <span className="text-red-400 font-bold">✕</span>
+                     <span>Don't use ALL CAPS constantly.</span>
+                  </li>
+                  <li className="flex gap-2 text-xs text-slate-400">
+                     <span className="text-red-400 font-bold">✕</span>
+                     <span>No promotional words ("Best Seller", "Free").</span>
+                  </li>
+                  <li className="flex gap-2 text-xs text-slate-400">
+                     <span className="text-emerald-400 font-bold">✓</span>
+                     <span>Capitalize the first letter of each word.</span>
+                  </li>
+                  <li className="flex gap-2 text-xs text-slate-400">
+                     <span className="text-emerald-400 font-bold">✓</span>
+                     <span>Use numerals ("3" instead of "Three").</span>
+                  </li>
+               </ul>
+            </div>
+
           </div>
+
         </div>
 
       </div>
-      <div className="mt-8 text-center text-gray-400 text-sm">Created by SmartRwl</div>
     </div>
   );
 }

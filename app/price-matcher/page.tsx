@@ -1,170 +1,303 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { 
+  Swords, 
+  ShieldAlert, 
+  TrendingDown, 
+  DollarSign, 
+  Target, 
+  Flag,
+  BookOpen,
+  Scale,
+  Zap
+} from 'lucide-react';
 
-export default function PriceMatcher() {
-  // Inputs
-  const [myCost, setMyCost] = useState<number | ''>(''); // Landed Cost
-  const [shipping, setShipping] = useState<number | ''>(''); // FBA/FBM Cost
-  const [feePercent, setFeePercent] = useState<number | ''>(''); // Referral Fee %
-  const [competitorPrice, setCompetitorPrice] = useState<number | ''>('');
+export default function CompetitiveIntelligenceEngine() {
+  // --- STATE ---
   
-  // Outputs
-  const [profitIfMatched, setProfitIfMatched] = useState<number>(0);
-  const [marginIfMatched, setMarginIfMatched] = useState<number>(0);
-  const [breakEvenPrice, setBreakEvenPrice] = useState<number>(0);
-  const [status, setStatus] = useState('');
-  const [showGuide, setShowGuide] = useState(false);
+  // 1. My Economics
+  const [landedCost, setLandedCost] = useState<number>(300);
+  const [shippingCost, setShippingCost] = useState<number>(70);
+  const [referralFeePct, setReferralFeePct] = useState<number>(15);
+  const [minMarginGoal, setMinMarginGoal] = useState<number>(10); // Minimum Acceptable Margin %
 
+  // 2. Competitor Intel
+  const [competitorPrice, setCompetitorPrice] = useState<number>(550);
+
+  // 3. Outputs
+  const [metrics, setMetrics] = useState({
+    breakEvenPrice: 0,
+    minViablePrice: 0,
+    profitAtMatch: 0,
+    marginAtMatch: 0,
+    status: 'safe' as 'safe' | 'warning' | 'danger',
+    recommendation: '',
+    counterStrikePrice: 0
+  });
+
+  // --- ENGINE ---
   useEffect(() => {
-    const cost = Number(myCost) || 0;
-    const ship = Number(shipping) || 0;
-    const feePct = Number(feePercent) || 0;
-    const compPrice = Number(competitorPrice) || 0;
+    // A. Break Even (Zero Profit)
+    // Price - (Price * Fee%) - Cost - Ship = 0
+    // Price * (1 - Fee%) = Cost + Ship
+    // Price = (Cost + Ship) / (1 - Fee%)
+    const totalCost = landedCost + shippingCost;
+    const feeDec = referralFeePct / 100;
+    
+    const bePrice = totalCost / (1 - feeDec);
 
-    if (cost > 0) {
-      // 1. Calculate Break Even (Walk Away Price)
-      // Price = Cost + Ship + (Price * Fee%)
-      // Price - (Price * Fee%) = Cost + Ship
-      // Price * (1 - Fee%) = Cost + Ship
-      // Price = (Cost + Ship) / (1 - Fee%)
-      
-      const bePrice = (cost + ship) / (1 - (feePct / 100));
-      setBreakEvenPrice(bePrice);
+    // B. Minimum Viable Price (To keep Min Margin Goal)
+    // Price - (Price * Fee%) - Cost - Ship = Price * MinMargin%
+    // Price * (1 - Fee% - MinMargin%) = Cost + Ship
+    // Price = (Cost + Ship) / (1 - Fee% - MinMargin%)
+    const minMarginDec = minMarginGoal / 100;
+    const mvPrice = totalCost / (1 - feeDec - minMarginDec);
 
-      // 2. Calculate Profit if matched
-      if (compPrice > 0) {
-        const fees = compPrice * (feePct / 100);
-        const net = compPrice - cost - ship - fees;
-        const margin = (net / compPrice) * 100;
-        
-        setProfitIfMatched(net);
-        setMarginIfMatched(margin);
+    // C. Scenario: Matching Competitor
+    const compFee = competitorPrice * feeDec;
+    const profitMatch = competitorPrice - totalCost - compFee;
+    const marginMatch = competitorPrice > 0 ? (profitMatch / competitorPrice) * 100 : 0;
 
-        if (net > 0) setStatus('SAFE TO MATCH');
-        else if (net === 0) setStatus('BREAK EVEN');
-        else setStatus('DO NOT MATCH');
-      } else {
-        setProfitIfMatched(0);
-        setMarginIfMatched(0);
-        setStatus('');
-      }
+    // D. Counter Strike Strategy (Undercut by small amount or match)
+    // If safe, undercut by 1-5 rupees or cents to win buy box
+    const counterPrice = competitorPrice - 5; 
+
+    // E. Status Logic
+    let status: 'safe' | 'warning' | 'danger' = 'safe';
+    let rec = '';
+
+    if (profitMatch < 0) {
+      status = 'danger';
+      rec = 'DO NOT MATCH. You will lose money on every sale. Let them stock out.';
+    } else if (marginMatch < minMarginGoal) {
+      status = 'warning';
+      rec = `Technically profitable, but below your ${minMarginGoal}% goal. Proceed with caution.`;
+    } else {
+      status = 'safe';
+      rec = 'Safe to match or undercut. You have healthy margin buffer.';
     }
-  }, [myCost, shipping, feePercent, competitorPrice]);
+
+    setMetrics({
+      breakEvenPrice: bePrice,
+      minViablePrice: mvPrice,
+      profitAtMatch: profitMatch,
+      marginAtMatch: marginMatch,
+      status,
+      recommendation: rec,
+      counterStrikePrice: counterPrice
+    });
+
+  }, [landedCost, shippingCost, referralFeePct, minMarginGoal, competitorPrice]);
+
+  const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 font-sans">
-      <div className="max-w-4xl w-full bg-white p-8 rounded-xl shadow-lg space-y-6">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Competitor Price Matcher
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Can you afford to beat your competitor's price? Find out instantly.
-          </p>
-        </div>
-
-        {/* --- HOW TO USE SECTION --- */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
-          <button 
-            onClick={() => setShowGuide(!showGuide)}
-            className="w-full flex justify-between items-center p-4 text-blue-800 font-bold text-sm hover:bg-blue-100 transition-colors"
-          >
-            <span>📖 How to Use This Tool</span>
-            <svg className={`w-5 h-5 transition-transform ${showGuide ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-          </button>
-          
-          {showGuide && (
-            <div className="p-4 border-t border-blue-200 text-sm text-blue-900 space-y-2 bg-blue-50/50">
-              <p><strong>1. Enter Costs:</strong> Input your Product Cost, Shipping, and Amazon Fees.</p>
-              <p><strong>2. Enter Competitor Price:</strong> Input the low price your competitor is selling at.</p>
-              <p><strong>3. The Decision:</strong>
-                <ul className="list-disc list-inside ml-2 mt-1">
-                  <li>If <strong>Green (SAFE)</strong>: You can match them and still make money.</li>
-                  <li>If <strong>Red (DO NOT MATCH)</strong>: You will lose money. Let them run out of stock instead of engaging in a price war.</li>
-                </ul>
-              </p>
-              <p><strong>4. Walk Away Price:</strong> This is your absolute lowest limit (0 profit). Never price below this.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* INPUTS */}
-          <div className="space-y-5">
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
-              <h3 className="font-bold text-gray-700 text-sm uppercase">Your Economics</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Product Cost</label>
-                  <input type="number" className="w-full p-2 border rounded" value={myCost} onChange={e => setMyCost(Number(e.target.value))} placeholder="e.g. 200" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Shipping Cost</label>
-                  <input type="number" className="w-full p-2 border rounded" value={shipping} onChange={e => setShipping(Number(e.target.value))} placeholder="e.g. 70" />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-500">Referral Fee %</label>
-                <input type="number" className="w-full p-2 border rounded" value={feePercent} onChange={e => setFeePercent(Number(e.target.value))} placeholder="e.g. 15" />
-              </div>
-            </div>
-
-            <div className="bg-red-50 p-4 rounded-lg border border-red-100 space-y-3">
-              <h3 className="font-bold text-red-800 text-sm uppercase">The Threat</h3>
-              <label className="text-xs font-bold text-red-600">Competitor's Selling Price</label>
-              <input 
-                type="number" 
-                className="w-full p-3 border border-red-200 rounded focus:ring-2 focus:ring-red-500 text-lg font-bold text-red-900" 
-                value={competitorPrice} 
-                onChange={e => setCompetitorPrice(Number(e.target.value))} 
-                placeholder="e.g. 499" 
-              />
-            </div>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 border-b border-slate-800 pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Swords className="w-8 h-8 text-red-500" />
+              Price War Intelligence
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Analyze competitor pricing threats and determine your "Walk Away" point.
+            </p>
           </div>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+             <Flag className={`w-4 h-4 ${metrics.status === 'safe' ? 'text-emerald-500' : 'text-red-500'}`} />
+             <span className="text-sm font-medium text-slate-300">
+                Action: <span className={metrics.status === 'safe' ? 'text-emerald-400' : metrics.status === 'warning' ? 'text-yellow-400' : 'text-red-400'}>{metrics.status.toUpperCase()}</span>
+             </span>
+          </div>
+        </div>
 
-          {/* RESULTS */}
-          <div className="flex flex-col justify-center space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
+          
+          {/* --- LEFT: CONFIG (4 Cols) --- */}
+          <div className="lg:col-span-4 space-y-6">
             
-            {/* Status Card */}
-            <div className={`p-8 rounded-xl text-center shadow-lg border-2 ${
-              status === 'SAFE TO MATCH' ? 'bg-green-100 border-green-300 text-green-800' :
-              status === 'DO NOT MATCH' ? 'bg-red-100 border-red-300 text-red-800' :
-              'bg-gray-100 border-gray-300 text-gray-600'
-            }`}>
-              <p className="text-xs font-bold uppercase tracking-widest mb-2 opacity-70">Verdict</p>
-              <h2 className="text-3xl font-extrabold">{status || 'Enter Data'}</h2>
-              
-              {status && (
-                <div className="mt-4 pt-4 border-t border-black/10">
-                  <p className="text-sm">If you match <strong>₹{competitorPrice}</strong>:</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {profitIfMatched >= 0 ? '+' : '-'}₹{Math.abs(profitIfMatched).toFixed(2)} Profit
-                  </p>
-                  <p className="text-xs mt-1">({marginIfMatched.toFixed(1)}% Margin)</p>
-                </div>
-              )}
+            {/* 1. My Economics */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <DollarSign className="w-4 h-4 text-blue-400" /> My Cost Structure
+               </h3>
+               
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Landed Cost</label>
+                        <input type="number" value={landedCost} onChange={e => setLandedCost(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none" />
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Shipping</label>
+                        <input type="number" value={shippingCost} onChange={e => setShippingCost(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none" />
+                     </div>
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Referral Fee %</label>
+                     <input type="number" value={referralFeePct} onChange={e => setReferralFeePct(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none" />
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Min Margin Goal %</label>
+                     <input type="number" value={minMarginGoal} onChange={e => setMinMarginGoal(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none" />
+                     <p className="text-[10px] text-slate-500 mt-1">Lowest profit margin you accept.</p>
+                  </div>
+               </div>
             </div>
 
-            {/* Break Even Card */}
-            <div className="bg-slate-800 text-white p-4 rounded-lg flex justify-between items-center px-6">
-              <div>
-                <p className="text-xs text-slate-400 uppercase font-bold">Your "Walk Away" Price</p>
-                <p className="text-[10px] text-slate-500">Zero Profit Point</p>
-              </div>
-              <div className="text-2xl font-bold text-yellow-400">
-                ₹{Math.ceil(breakEvenPrice)}
-              </div>
+            {/* 2. Competitor */}
+            <div className="bg-slate-900 rounded-xl border border-red-900/30 p-6">
+               <h3 className="text-red-400 font-bold flex items-center gap-2 mb-4">
+                  <Target className="w-4 h-4" /> Competitor Intel
+               </h3>
+               
+               <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Competitor Price</label>
+                  <input type="number" value={competitorPrice} onChange={e => setCompetitorPrice(Number(e.target.value))} className="w-full bg-slate-950 border border-red-900/50 rounded p-3 text-red-400 font-bold text-lg focus:border-red-500 outline-none" />
+               </div>
+            </div>
+
+          </div>
+
+          {/* --- RIGHT: WAR ROOM (8 Cols) --- */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            {/* 1. Tactical Dashboard */}
+            <div className={`rounded-xl border p-8 shadow-2xl relative overflow-hidden ${
+               metrics.status === 'safe' ? 'bg-emerald-950/30 border-emerald-900' : 
+               metrics.status === 'warning' ? 'bg-yellow-950/30 border-yellow-900' : 
+               'bg-red-950/30 border-red-900'
+            }`}>
+               <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
+                  <div className="flex-1">
+                     <span className="text-sm font-bold uppercase tracking-wider text-slate-300">Net Outcome if Matched</span>
+                     <div className="flex items-baseline gap-4 mt-2">
+                        <span className={`text-6xl font-extrabold ${metrics.profitAtMatch >= 0 ? 'text-white' : 'text-red-500'}`}>
+                           {metrics.profitAtMatch >= 0 ? '+' : ''}{fmt(metrics.profitAtMatch)}
+                        </span>
+                        <span className={`text-xl font-medium ${metrics.marginAtMatch >= minMarginGoal ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                           {metrics.marginAtMatch.toFixed(1)}% Margin
+                        </span>
+                     </div>
+                     <p className="text-sm text-slate-300 mt-4 leading-relaxed font-medium bg-slate-950/50 p-3 rounded border border-white/10">
+                        {metrics.recommendation}
+                     </p>
+                  </div>
+
+                  {/* Counter Strike */}
+                  {metrics.status !== 'danger' && (
+                     <div className="w-full md:w-64 bg-slate-950/80 p-4 rounded-xl border border-white/10 text-center">
+                        <div className="text-xs font-bold text-indigo-400 uppercase mb-2 flex items-center justify-center gap-1">
+                           <Zap className="w-3 h-3" /> Counter-Strike
+                        </div>
+                        <div className="text-3xl font-bold text-white mb-1">{fmt(metrics.counterStrikePrice)}</div>
+                        <p className="text-[10px] text-slate-500">Undercut slightly to win Buy Box</p>
+                     </div>
+                  )}
+               </div>
+            </div>
+
+            {/* 2. Price Anchors */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
+                     <Scale className="w-4 h-4" /> Break-Even Floor
+                  </h3>
+                  <div className="flex items-baseline gap-2 mb-2">
+                     <span className="text-4xl font-bold text-white">{fmt(metrics.breakEvenPrice)}</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                     The absolute lowest price you can sell at without losing cash (0 profit).
+                  </p>
+               </div>
+
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
+                     <ShieldAlert className="w-4 h-4" /> Min. Viable Price
+                  </h3>
+                  <div className="flex items-baseline gap-2 mb-2">
+                     <span className="text-4xl font-bold text-white">{fmt(metrics.minViablePrice)}</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                     Lowest price to maintain your {minMarginGoal}% margin goal. Do not go below this for long.
+                  </p>
+               </div>
+
+            </div>
+
+            {/* 3. Visual Margin Bar */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+               <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">Profit Impact Visualizer</h3>
+               <div className="h-8 w-full bg-slate-950 rounded-full overflow-hidden flex text-[10px] font-bold text-slate-900 leading-[2rem] text-center">
+                  {/* Costs */}
+                  <div style={{ width: `${((landedCost+shippingCost) / competitorPrice) * 100}%` }} className="bg-slate-600 text-slate-300">Cost</div>
+                  {/* Fees */}
+                  <div style={{ width: `${(referralFeePct)}%` }} className="bg-orange-500">Fee</div>
+                  {/* Profit or Loss */}
+                  {metrics.marginAtMatch > 0 ? (
+                     <div style={{ width: `${metrics.marginAtMatch}%` }} className="bg-emerald-500">Profit</div>
+                  ) : (
+                     <div className="flex-1 bg-red-500 text-white">LOSS ZONE</div>
+                  )}
+               </div>
+               <div className="flex justify-between text-xs text-slate-500 mt-2">
+                  <span>0%</span>
+                  <span>Competitor Price (100%)</span>
+               </div>
             </div>
 
           </div>
 
         </div>
+
+        {/* --- GUIDE SECTION --- */}
+        <div className="border-t border-slate-800 pt-10">
+           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-red-500" />
+              War Room Strategy
+           </h2>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-red-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <ShieldAlert className="w-5 h-5 text-red-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">When to Walk Away?</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    If the competitor price is below your <b>Break-Even Floor</b>, do not follow them. They are either clearing dead stock or have a cheaper supplier. Let them sell out at a loss.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-indigo-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Zap className="w-5 h-5 text-indigo-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">The "Buy Box" Trick</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    You don't need to be ₹50 cheaper. Amazon's algorithm often awards the Buy Box to the lowest price by even <b>₹1 or ₹5</b>. Use the "Counter-Strike" price.
+                 </p>
+              </div>
+
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                 <div className="bg-yellow-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <TrendingDown className="w-5 h-5 text-yellow-400" />
+                 </div>
+                 <h3 className="font-bold text-white mb-2">Variable Fees</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed">
+                    Remember: When you lower your price, you pay <b>less referral fee</b>. This calculator automatically accounts for that saving, often revealing hidden profit.
+                 </p>
+              </div>
+
+           </div>
+        </div>
+
       </div>
-      <div className="mt-8 text-center text-gray-400 text-sm">Created by SmartRwl</div>
     </div>
   );
 }
