@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script"; // <--- 1. Import added here
+import Script from "next/script"; 
 import "./globals.css";
 import Navbar from "./components/Navbar"; 
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SmartRwl Seller Tools",
+  title: "Smart Seller Tools",
   description: "Tools for Amazon and Flipkart Sellers",
 };
 
@@ -20,7 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} bg-gray-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]`}>
         
-        {/* 2. Adsterra Ad Script */}
+        {/* Adsterra Ad Script */}
         <Script 
           src="//pl28175488.effectivegatecpm.com/66/6a/26/666a2635f82928121a8ccd607d68e862.js"
           strategy="afterInteractive"
