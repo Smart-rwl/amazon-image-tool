@@ -2,11 +2,26 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 
-async function getDashboardData() {
+type DashboardData = {
+  totalUnits: number;
+  totalRevenue: number;
+  productCount: number;
+  lowStock: number;
+};
+
+type SalesGroupRow = {
+  _sum: {
+    units: number | null;
+    revenue: number | null;
+  };
+};
+
+async function getDashboardData(): Promise<DashboardData> {
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
-  const [salesGroup, productCount, lowStock] = await Promise.all([
+  // Explicitly type the results from Promise.all so TS knows what salesGroup is
+  const [salesGroup, productCount, lowStock] = (await Promise.all([
     prisma.sale.groupBy({
       by: ['productId'],
       _sum: { units: true, revenue: true },
@@ -18,18 +33,17 @@ async function getDashboardData() {
         onHand: { gt: 0, lt: 20 }, // simple "low stock" rule
       },
     }),
-  ]);
+  ])) as [SalesGroupRow[], number, number];
 
-  const totalUnits = salesGroup.reduce<number>(
-  (acc, s) => acc + (s._sum?.units ?? 0),
-  0
-);
+  const totalUnits = salesGroup.reduce(
+    (acc, s) => acc + (s._sum.units ?? 0),
+    0
+  );
 
-const totalRevenue = salesGroup.reduce<number>(
-  (acc, s) => acc + Number(s._sum?.revenue ?? 0),
-  0
-);
-
+  const totalRevenue = salesGroup.reduce(
+    (acc, s) => acc + (s._sum.revenue ?? 0),
+    0
+  );
 
   return { totalUnits, totalRevenue, productCount, lowStock };
 }
@@ -72,8 +86,14 @@ export default async function DashboardPage() {
                 : '₹0'
             }
           />
-          <StatCard label="Units sold (30d)" value={data.totalUnits.toString()} />
-          <StatCard label="Active SKUs" value={data.productCount.toString()} />
+          <StatCard
+            label="Units sold (30d)"
+            value={data.totalUnits.toString()}
+          />
+          <StatCard
+            label="Active SKUs"
+            value={data.productCount.toString()}
+          />
           <StatCard
             label="Low stock SKUs"
             value={data.lowStock.toString()}
