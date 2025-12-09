@@ -20,7 +20,7 @@ export default function AdvancedAbTestCalculator() {
   // Version A (Control)
   const [visA, setVisA] = useState<number | ''>(''); 
   const [convA, setConvA] = useState<number | ''>(''); 
-  const [revA, setRevA] = useState<number | ''>(''); // Total Revenue A
+  const [revA, setRevA] = useState<number | ''>(''); // Total Revenue AB
 
   // Version B (Variant)
   const [visB, setVisB] = useState<number | ''>('');
