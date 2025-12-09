@@ -4,15 +4,24 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { TOOLS, TOOL_GROUPS, ToolGroupId } from '../config/tools.config'; // adjust path if needed
+
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+
+  const toolsByGroup: Record<ToolGroupId, typeof TOOLS> = {
+    calculators: TOOLS.filter(t => t.group === 'calculators'),
+    finance: TOOLS.filter(t => t.group === 'finance'),
+    listing: TOOLS.filter(t => t.group === 'listing'),
+  operations: TOOLS.filter(t => t.group === 'operations'),
+  };
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          {/* --- LOGO --- */}
+          {/* LOGO */}
           <div className="flex items-center">
             <Link href="/" className="flex-shrink-0 flex items-center gap-2 group">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform">
@@ -24,55 +33,67 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* --- DESKTOP NAVIGATION --- */}
+          <Link
+  href="/tools"
+  className="px-3 py-2 text-sm text-gray-700 hover:text-blue-600"
+>
+  All Tools
+</Link>
+
+          {/* DESKTOP NAV */}
           <div className="hidden lg:flex items-center space-x-1">
-            {/* 1. Calculators (General) */}
-            <Dropdown title="Calculators" icon={<CalculatorIcon />}>
+            <Dropdown title={TOOL_GROUPS.calculators} icon={<CalculatorIcon />}>
               <div className="grid grid-cols-2 w-[380px] gap-1 p-2">
-                <MenuLink href="/calculator" title="Profit & RTO" desc="Net margin analysis" />
-                <MenuLink href="/ppc-calculator" title="PPC / Ads" desc="ACOS & ROAS" />
-                <MenuLink href="/volumetric" title="Volumetric Weight" desc="Courier chargeable wt" />
-                <MenuLink href="/odr-calculator" title="Account Health" desc="ODR monitoring" />
-                <MenuLink href="/volume-calculator" title="Price vs Volume" desc="Price elasticity" />
-                <MenuLink href="/influencer-roi" title="Influencer ROI" desc="Campaign tracking" />
+                {toolsByGroup.calculators.map(tool => (
+                  <MenuLink
+                    key={tool.slug}
+                    href={`/${tool.slug}`}
+                    title={tool.label}
+                    desc={tool.desc}
+                    active={pathname === `/${tool.slug}`}
+                  />
+                ))}
               </div>
             </Dropdown>
 
-            {/* 2. Finance (Cost & Pricing) */}
-            <Dropdown title="Finance" icon={<BanknotesIcon />}>
+            <Dropdown title={TOOL_GROUPS.finance} icon={<BanknotesIcon />}>
               <div className="grid grid-cols-2 w-[380px] gap-1 p-2">
-                <MenuLink href="/price-finder" title="Target Price" desc="Reverse calculation" />
-                <MenuLink href="/price-matcher" title="Price Matcher" desc="Competitor pricing" />
-                <MenuLink href="/bundle-calculator" title="Bundle Profit" desc="Kit profitability" />
-                <MenuLink href="/landed-cost" title="Landed Cost" desc="Import duty & freight" />
-                <MenuLink href="/storage-fee-planner" title="Storage Fees" desc="Monthly FBA fees" />
-                <MenuLink href="/ltsf-calculator" title="LTSF Calculator" desc="Long-term storage" />
+                {toolsByGroup.finance.map(tool => (
+                  <MenuLink
+                    key={tool.slug}
+                    href={`/${tool.slug}`}
+                    title={tool.label}
+                    desc={tool.desc}
+                    active={pathname === `/${tool.slug}`}
+                  />
+                ))}
               </div>
             </Dropdown>
 
-            {/* 3. Listing Tools */}
-            <Dropdown title="Listing Tools" icon={<ListIcon />}>
+            <Dropdown title={TOOL_GROUPS.listing} icon={<ListIcon />}>
               <div className="grid grid-cols-2 w-[380px] gap-1 p-2">
-                <MenuLink href="/keywords" title="Keyword Explorer" desc="Seed keyword list" />
-                <MenuLink href="/keyword-density" title="Keyword Density" desc="Competitor content" />
-                <MenuLink href="/keyword-mixer" title="Keyword Mixer" desc="Phrase combos" />
-                <MenuLink href="/title-optimizer" title="Title Optimizer" desc="SEO title builder" />
-                <MenuLink href="/bullet-builder" title="Bullet Builder" desc="Feature bullets" />
-                <MenuLink href="/html-formatter" title="HTML Formatter" desc="Description HTML" />
-                <MenuLink href="/lqs-checker" title="Listing Auditor" desc="LQS / basic checks" />
-                <MenuLink href="/sku-generator" title="SKU Generator" desc="Custom SKU logic" />
-                <MenuLink href="/ab-test" title="A/B Test" desc="Significance calculator" />
+                {toolsByGroup.listing.map(tool => (
+                  <MenuLink
+                    key={tool.slug}
+                    href={`/${tool.slug}`}
+                    title={tool.label}
+                    desc={tool.desc}
+                    active={pathname === `/${tool.slug}`}
+                  />
+                ))}
               </div>
             </Dropdown>
 
-            {/* 4. Operations */}
-            <Dropdown title="Operations" icon={<CogIcon />}>
+            <Dropdown title={TOOL_GROUPS.operations} icon={<CogIcon />}>
               <div className="w-64 p-2 space-y-1">
-                <MenuLink href="/inventory-planner" title="Inventory Planner" />
-                <MenuLink href="/deal-planner" title="Deal / Discount Planner" />
-                <MenuLink href="/qr-generator" title="QR Generator" />
-                <MenuLink href="/cbm-calculator" title="CBM Calculator" />
-                <MenuLink href="/barcode-generator" title="Barcode Generator" />
+                {toolsByGroup.operations.map(tool => (
+                  <MenuLink
+                    key={tool.slug}
+                    href={`/${tool.slug}`}
+                    title={tool.label}
+                    active={pathname === `/${tool.slug}`}
+                  />
+                ))}
               </div>
             </Dropdown>
 
@@ -84,10 +105,10 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* --- MOBILE HAMBURGER --- */}
+          {/* MOBILE BUTTON */}
           <div className="flex items-center lg:hidden">
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              onClick={() => setIsMobileMenuOpen(prev => !prev)}
               className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none transition-colors"
             >
               {isMobileMenuOpen ? (
@@ -104,46 +125,56 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* --- MOBILE MENU --- */}
+      {/* MOBILE MENU */}
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-gray-100 max-h-[80vh] overflow-y-auto shadow-xl">
           <div className="px-4 pt-2 pb-6 space-y-4">
-            <MobileSection title="Calculators">
-              <MobileLink href="/calculator">Profit &amp; RTO</MobileLink>
-              <MobileLink href="/ppc-calculator">PPC / Ads</MobileLink>
-              <MobileLink href="/volumetric">Volumetric Weight</MobileLink>
-              <MobileLink href="/odr-calculator">Account Health (ODR)</MobileLink>
-              <MobileLink href="/volume-calculator">Price vs Volume</MobileLink>
-              <MobileLink href="/influencer-roi">Influencer ROI</MobileLink>
+            <MobileSection title={TOOL_GROUPS.calculators}>
+              {toolsByGroup.calculators.map(tool => (
+                <MobileLink
+                  key={tool.slug}
+                  href={`/${tool.slug}`}
+                  active={pathname === `/${tool.slug}`}
+                >
+                  {tool.label}
+                </MobileLink>
+              ))}
             </MobileSection>
 
-            <MobileSection title="Finance">
-              <MobileLink href="/price-finder">Target Price</MobileLink>
-              <MobileLink href="/price-matcher">Price Matcher</MobileLink>
-              <MobileLink href="/bundle-calculator">Bundle Profit</MobileLink>
-              <MobileLink href="/landed-cost">Landed Cost</MobileLink>
-              <MobileLink href="/storage-fee-planner">Storage Fees</MobileLink>
-              <MobileLink href="/ltsf-calculator">LTSF Calculator</MobileLink>
+            <MobileSection title={TOOL_GROUPS.finance}>
+              {toolsByGroup.finance.map(tool => (
+                <MobileLink
+                  key={tool.slug}
+                  href={`/${tool.slug}`}
+                  active={pathname === `/${tool.slug}`}
+                >
+                  {tool.label}
+                </MobileLink>
+              ))}
             </MobileSection>
 
-            <MobileSection title="Listing Tools">
-              <MobileLink href="/keywords">Keyword Explorer</MobileLink>
-              <MobileLink href="/keyword-density">Keyword Density</MobileLink>
-              <MobileLink href="/keyword-mixer">Keyword Mixer</MobileLink>
-              <MobileLink href="/title-optimizer">Title Optimizer</MobileLink>
-              <MobileLink href="/bullet-builder">Bullet Builder</MobileLink>
-              <MobileLink href="/html-formatter">HTML Formatter</MobileLink>
-              <MobileLink href="/lqs-checker">Listing Auditor</MobileLink>
-              <MobileLink href="/sku-generator">SKU Generator</MobileLink>
-              <MobileLink href="/ab-test">A/B Test</MobileLink>
+            <MobileSection title={TOOL_GROUPS.listing}>
+              {toolsByGroup.listing.map(tool => (
+                <MobileLink
+                  key={tool.slug}
+                  href={`/${tool.slug}`}
+                  active={pathname === `/${tool.slug}`}
+                >
+                  {tool.label}
+                </MobileLink>
+              ))}
             </MobileSection>
 
-            <MobileSection title="Operations">
-              <MobileLink href="/inventory-planner">Inventory Planner</MobileLink>
-              <MobileLink href="/deal-planner">Deal Planner</MobileLink>
-              <MobileLink href="/qr-generator">QR Generator</MobileLink>
-              <MobileLink href="/cbm-calculator">CBM Calculator</MobileLink>
-              <MobileLink href="/barcode-generator">Barcode Generator</MobileLink>
+            <MobileSection title={TOOL_GROUPS.operations}>
+              {toolsByGroup.operations.map(tool => (
+                <MobileLink
+                  key={tool.slug}
+                  href={`/${tool.slug}`}
+                  active={pathname === `/${tool.slug}`}
+                >
+                  {tool.label}
+                </MobileLink>
+              ))}
             </MobileSection>
           </div>
         </div>
@@ -152,7 +183,7 @@ export default function Navbar() {
   );
 }
 
-/* --- SUB-COMPONENTS --- */
+/* --- SUB COMPONENTS --- */
 
 function Dropdown({
   title,
@@ -183,11 +214,32 @@ function Dropdown({
   );
 }
 
-function MenuLink({ href, title, desc }: { href: string; title: string; desc?: string }) {
+function MenuLink({
+  href,
+  title,
+  desc,
+  active,
+}: {
+  href: string;
+  title: string;
+  desc?: string;
+  active?: boolean;
+}) {
   return (
-    <Link href={href} className="block px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors group">
-      <div className="text-sm font-medium text-gray-800 group-hover:text-blue-600">{title}</div>
-      {desc && <div className="text-[10px] text-gray-400 group-hover:text-gray-500 leading-tight">{desc}</div>}
+    <Link
+      href={href}
+      className={`block px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors group ${
+        active ? 'bg-gray-50' : ''
+      }`}
+    >
+      <div className={`text-sm font-medium ${active ? 'text-blue-600' : 'text-gray-800 group-hover:text-blue-600'}`}>
+        {title}
+      </div>
+      {desc && (
+        <div className="text-[10px] text-gray-400 group-hover:text-gray-500 leading-tight">
+          {desc}
+        </div>
+      )}
     </Link>
   );
 }
@@ -195,21 +247,36 @@ function MenuLink({ href, title, desc }: { href: string; title: string; desc?: s
 function MobileSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <h3 className="font-bold text-gray-900 text-sm border-b pb-1 mb-2 uppercase tracking-wider">{title}</h3>
+      <h3 className="font-bold text-gray-900 text-sm border-b pb-1 mb-2 uppercase tracking-wider">
+        {title}
+      </h3>
       <div className="grid grid-cols-2 gap-2 pl-2">{children}</div>
     </div>
   );
 }
 
-function MobileLink({ href, children }: { href: string; children: React.ReactNode }) {
+function MobileLink({
+  href,
+  children,
+  active,
+}: {
+  href: string;
+  children: React.ReactNode;
+  active?: boolean;
+}) {
   return (
-    <Link href={href} className="text-sm text-gray-600 hover:text-blue-600 py-1 block">
+    <Link
+      href={href}
+      className={`text-sm py-1 block ${
+        active ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-blue-600'
+      }`}
+    >
       {children}
     </Link>
   );
 }
 
-/* --- ICONS --- */
+/* ICONS (same as before) */
 const CalculatorIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path
