@@ -20,13 +20,13 @@ async function getDashboardData() {
     }),
   ]);
 
-  const totalUnits = salesGroup.reduce(
-  (acc: number, s) => acc + (s._sum.units ?? 0),
+  const totalUnits = salesGroup.reduce<number>(
+  (acc, s) => acc + (s._sum?.units ?? 0),
   0
 );
 
-const totalRevenue = salesGroup.reduce(
-  (acc: number, s) => acc + Number(s._sum.revenue ?? 0),
+const totalRevenue = salesGroup.reduce<number>(
+  (acc, s) => acc + Number(s._sum?.revenue ?? 0),
   0
 );
 
