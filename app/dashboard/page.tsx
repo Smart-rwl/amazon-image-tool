@@ -44,7 +44,7 @@ async function getDashboardData(): Promise<DashboardData> {
   );
 
   const totalRevenue = salesGroup.reduce(
-    (acc, s) => acc + (s._sum.revenue ?? 0),
+    (acc, s) => acc + Number(s._sum.revenue ?? 0),
     0
   );
 
