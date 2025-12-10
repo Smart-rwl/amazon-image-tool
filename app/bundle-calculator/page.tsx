@@ -14,7 +14,9 @@ import {
   Layers,
   BookOpen,
   MousePointerClick,
-  Lightbulb
+  Lightbulb,
+  Target, // New Icon
+  ScanLine // New Icon
 } from 'lucide-react';
 
 // --- TYPES ---
@@ -36,6 +38,9 @@ export default function BundleIntelligenceCenter() {
   const [packagingCost, setPackagingCost] = useState<number>(30);   // Box cost
   const [packagingWeight, setPackagingWeight] = useState<number>(100); // Box weight (g)
 
+  // 1.5 NEW: Dimensional Logic (Volumetric)
+  const [boxDims, setBoxDims] = useState({ l: 20, w: 15, h: 10 }); // cm
+
   // 2. Components List
   const [components, setComponents] = useState<Component[]>([
     { id: 1, name: 'Shampoo 500ml', cost: 150, individualPrice: 499, weight: 550, qty: 1 },
@@ -50,6 +55,9 @@ export default function BundleIntelligenceCenter() {
   const [metrics, setMetrics] = useState({
     totalSourcingCost: 0,
     totalWeightKg: 0,
+    volumetricWeightKg: 0, // NEW
+    chargeableWeightKg: 0, // NEW
+    isVolumetric: false,   // NEW
     estimatedFBAFee: 0,
     referralFeeAmt: 0,
     totalExpenses: 0,
@@ -57,7 +65,9 @@ export default function BundleIntelligenceCenter() {
     margin: 0,
     roi: 0,
     individualTotal: 0,
-    customerSavings: 0
+    customerSavings: 0,
+    breakEvenROAS: 0,      // NEW
+    maxCPA: 0              // NEW
   });
 
   // --- CALCULATION ENGINE ---
@@ -73,22 +83,29 @@ export default function BundleIntelligenceCenter() {
       individualSum += c.individualPrice * c.qty;
     });
 
-    // Add Packaging
-    const finalWeightGrams = totalWtGrams + packagingWeight;
-    const finalWeightKg = finalWeightGrams / 1000;
+    // Add Packaging Weight
+    const actualWeightGrams = totalWtGrams + packagingWeight;
+    const actualWeightKg = actualWeightGrams / 1000;
 
-    // B. Logistics Logic (Step-based calculation)
-    // First 500g = Base Rate. Every additional 500g = Step Rate.
+    // B1. NEW: Volumetric Calculation (L*W*H / 5000 is standard divisor)
+    const volWeightKg = (boxDims.l * boxDims.w * boxDims.h) / 5000;
+    
+    // Determine Chargeable Weight (Amazon charges the HIGHER of the two)
+    const chargeableWeightKg = Math.max(actualWeightKg, volWeightKg);
+    const chargeableWeightGrams = chargeableWeightKg * 1000;
+    const isVolumetric = volWeightKg > actualWeightKg;
+
+    // B2. Logistics Logic (Step-based calculation using CHARGEABLE weight)
     let logisticsCost = shippingRate; 
-    if (finalWeightGrams > 500) {
-      const extraWeight = finalWeightGrams - 500;
+    if (chargeableWeightGrams > 500) {
+      const extraWeight = chargeableWeightGrams - 500;
       const extraSteps = Math.ceil(extraWeight / 500);
       logisticsCost += extraSteps * shippingTierStep;
     }
 
     // C. Fee Logic
     const refFee = bundlePrice * (referralFeePct / 100);
-    const taxApprox = (refFee + logisticsCost) * 0.18; // GST on services (Optional approximation)
+    const taxApprox = (refFee + logisticsCost) * 0.18; // GST on services
     
     // D. Final P&L
     const totalExpenses = sourcingCost + packagingCost + logisticsCost + refFee + taxApprox;
@@ -99,9 +116,18 @@ export default function BundleIntelligenceCenter() {
     const roi = totalExpenses > 0 ? (profit / totalExpenses) * 100 : 0;
     const savings = individualSum > 0 ? ((individualSum - bundlePrice) / individualSum) * 100 : 0;
 
+    // F. NEW: Marketing Metrics
+    // Break Even ROAS = Selling Price / Profit. (e.g., if Price 100, Profit 25, ROAS must be 4.0 to break even)
+    const beROAS = profit > 0 ? bundlePrice / profit : 0;
+    // Max CPA = Net Profit (The most you can spend to acquire a customer without losing money)
+    const maxCPA = profit;
+
     setMetrics({
       totalSourcingCost: sourcingCost,
-      totalWeightKg: finalWeightKg,
+      totalWeightKg: actualWeightKg,
+      volumetricWeightKg: volWeightKg,
+      chargeableWeightKg,
+      isVolumetric,
       estimatedFBAFee: logisticsCost,
       referralFeeAmt: refFee,
       totalExpenses,
@@ -109,10 +135,12 @@ export default function BundleIntelligenceCenter() {
       margin,
       roi,
       individualTotal: individualSum,
-      customerSavings: savings
+      customerSavings: savings,
+      breakEvenROAS: beROAS,
+      maxCPA
     });
 
-  }, [bundlePrice, referralFeePct, packagingCost, packagingWeight, components, shippingRate, shippingTierStep]);
+  }, [bundlePrice, referralFeePct, packagingCost, packagingWeight, components, shippingRate, shippingTierStep, boxDims]);
 
   // --- ACTIONS ---
   const addComponent = () => {
@@ -148,13 +176,20 @@ export default function BundleIntelligenceCenter() {
               Bundle Intelligence Center
             </h1>
             <p className="text-slate-400 mt-2">
-              Advanced unit economics & logistics planner for product kits.
+              Advanced unit economics, volumetric analysis & logistics planner.
             </p>
           </div>
+          
+          {/* UPDATED HEADER METRICS */}
           <div className="flex items-center gap-4 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
              <div className="text-right">
-                <p className="text-[10px] text-slate-500 uppercase font-bold">Total Bundle Weight</p>
-                <p className="text-lg font-mono font-bold text-white">{metrics.totalWeightKg.toFixed(2)} kg</p>
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Chargeable Weight</p>
+                <div className="flex items-center gap-2 justify-end">
+                    <p className={`text-lg font-mono font-bold ${metrics.isVolumetric ? 'text-orange-400' : 'text-white'}`}>
+                        {metrics.chargeableWeightKg.toFixed(2)} kg
+                    </p>
+                    {metrics.isVolumetric && <ScanLine className="w-4 h-4 text-orange-400" />}
+                </div>
              </div>
              <div className="h-8 w-px bg-slate-700"></div>
              <div className="text-right">
@@ -237,18 +272,47 @@ export default function BundleIntelligenceCenter() {
 
                <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
                   <h3 className="font-bold text-white text-sm mb-4 flex items-center gap-2">
-                     <Box className="w-4 h-4 text-orange-400" /> Logistics & Packaging
+                     <Box className="w-4 h-4 text-orange-400" /> Logistics & Dimensions
                   </h3>
+                  
+                  {/* NEW: Dimensions Input */}
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                     <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold mb-1 block">L (cm)</label>
+                        <input type="number" value={boxDims.l} onChange={e => setBoxDims({...boxDims, l: Number(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                     </div>
+                     <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold mb-1 block">W (cm)</label>
+                        <input type="number" value={boxDims.w} onChange={e => setBoxDims({...boxDims, w: Number(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                     </div>
+                     <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold mb-1 block">H (cm)</label>
+                        <input type="number" value={boxDims.h} onChange={e => setBoxDims({...boxDims, h: Number(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                     </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4 mb-4">
                      <div>
                         <label className="text-[10px] text-slate-500 uppercase font-bold mb-1 block">Box Cost</label>
                         <input type="number" value={packagingCost} onChange={e => setPackagingCost(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
                      </div>
                      <div>
-                        <label className="text-[10px] text-slate-500 uppercase font-bold mb-1 block">Box Weight (g)</label>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold mb-1 block">Empty Box Wt (g)</label>
                         <input type="number" value={packagingWeight} onChange={e => setPackagingWeight(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
                      </div>
                   </div>
+                  
+                  {/* NEW: Volumetric Warning */}
+                  {metrics.isVolumetric && (
+                    <div className="mb-4 p-2 bg-orange-900/20 border border-orange-900/50 rounded flex items-center gap-2">
+                        <ScanLine className="w-4 h-4 text-orange-400" />
+                        <span className="text-[10px] text-orange-200 leading-tight">
+                            Volumetric Weight ({metrics.volumetricWeightKg.toFixed(2)}kg) exceeds actual weight. Amazon will charge you for the volume.
+                        </span>
+                         
+                    </div>
+                  )}
+
                   <div className="pt-3 border-t border-slate-800">
                      <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                         <span>FBA Base Rate (500g)</span>
@@ -299,6 +363,12 @@ export default function BundleIntelligenceCenter() {
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
                <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-4">Financial Breakdown</h3>
                
+               {/* NEW: Visual Profit Stack */}
+               <div className="h-4 w-full bg-slate-800 rounded-full flex overflow-hidden mb-6">
+                   <div className="bg-blue-500 h-full" style={{ width: `${(metrics.totalExpenses / bundlePrice) * 100}%` }}></div>
+                   <div className="bg-emerald-500 h-full" style={{ width: `${metrics.margin}%` }}></div>
+               </div>
+
                <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-sm">
                      <span className="text-slate-400">Selling Price</span>
@@ -343,6 +413,25 @@ export default function BundleIntelligenceCenter() {
                </div>
             </div>
 
+            {/* 3. NEW: Marketing Intelligence */}
+            <div className="bg-indigo-950/20 border border-indigo-900/50 rounded-xl p-6">
+                <h3 className="text-xs font-bold uppercase text-indigo-400 tracking-wider mb-4 flex items-center gap-2">
+                    <Target className="w-4 h-4" /> Marketing Intelligence
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <span className="text-[10px] text-slate-400 uppercase block mb-1">Break-Even ROAS</span>
+                        <div className="text-2xl font-mono font-bold text-white">{metrics.breakEvenROAS.toFixed(2)}x</div>
+                        <p className="text-[10px] text-slate-500 mt-1">Min. ad return required</p>
+                    </div>
+                    <div>
+                        <span className="text-[10px] text-slate-400 uppercase block mb-1">Max CPA</span>
+                        <div className="text-2xl font-mono font-bold text-white">{fmt(metrics.maxCPA)}</div>
+                        <p className="text-[10px] text-slate-500 mt-1">Max spend to acquire 1 order</p>
+                    </div>
+                </div>
+            </div>
+
           </div>
         </div>
 
@@ -362,8 +451,6 @@ export default function BundleIntelligenceCenter() {
                  <h3 className="font-bold text-white mb-2">Why Bundle?</h3>
                  <p className="text-sm text-slate-400 leading-relaxed">
                     <b>Reduce FBA Fees:</b> You pay the "Pick & Pack" fee only ONCE for the whole box, instead of twice for two items. This instantly increases margin.
-                    <br/>
-                    <b>Increase AOV:</b> Higher Average Order Value means you can afford to spend more on Ads.
                  </p>
               </div>
 
@@ -371,19 +458,19 @@ export default function BundleIntelligenceCenter() {
                  <div className="bg-orange-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
                     <Scale className="w-5 h-5 text-orange-400" />
                  </div>
-                 <h3 className="font-bold text-white mb-2">The Weight Trap</h3>
+                 <h3 className="font-bold text-white mb-2">The Volumetric Trap</h3>
                  <p className="text-sm text-slate-400 leading-relaxed">
-                    Watch the <b>Total Weight</b> in the top right. If your bundle crosses 500g or 1kg, you jump to a higher shipping tier, which might eat up all your savings. Keep packaging light!
+                    If your box is light but large, Amazon charges for volume, not weight. Use the <b>L/W/H</b> inputs above. If the "Chargeable Weight" turns Orange, you are paying for air! Shrink your packaging.
                  </p>
               </div>
 
               <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
-                    <MousePointerClick className="w-5 h-5 text-emerald-400" />
+                 <div className="bg-indigo-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Target className="w-5 h-5 text-indigo-400" />
                  </div>
-                 <h3 className="font-bold text-white mb-2">Value Perception</h3>
+                 <h3 className="font-bold text-white mb-2">Marketing Math</h3>
                  <p className="text-sm text-slate-400 leading-relaxed">
-                    Use the <b>Value Proposition</b> card. If the customer isn't saving at least 10-15% compared to buying items individually, they won't buy the bundle.
+                    Watch the <b>Break-Even ROAS</b>. If it says 3.0x, and your ads are running at 2.5x, you are losing money on every sale. Aim for ads to perform 30% above your break-even point.
                  </p>
               </div>
 
