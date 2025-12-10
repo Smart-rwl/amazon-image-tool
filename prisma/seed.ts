@@ -10,10 +10,10 @@ async function main() {
   const product = await prisma.product.create({
     data: {
       sku: 'HEADPHONES-BLK-01',
-      title: 'Wireless Headphones - Black',
+      name: 'Wireless Headphones - Black',
       category: 'Electronics',
       costPrice: 800,
-      sellingPrice: 1499,
+      price: 1499,
       inventory: {
         create: {
           onHand: 120,
