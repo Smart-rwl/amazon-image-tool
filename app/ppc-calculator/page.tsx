@@ -10,7 +10,10 @@ import {
   CheckCircle2, 
   BarChart3,
   BookOpen,
-  PieChart
+  PieChart,
+  MousePointerClick, // NEW
+  Crosshair,         // NEW
+  Calculator         // NEW
 } from 'lucide-react';
 
 export default function AdProfitabilityEngine() {
@@ -26,15 +29,22 @@ export default function AdProfitabilityEngine() {
   const [sellingPrice, setSellingPrice] = useState<number>(1000);
   const [landedCost, setLandedCost] = useState<number>(400); // Product + Fees
 
-  // 3. Outputs
+  // 3. NEW: Strategy Config
+  const [targetProfitMargin, setTargetProfitMargin] = useState<number>(10); // % Profit I want to KEEP
+
+  // 4. Outputs
   const [metrics, setMetrics] = useState({
     acos: 0,
     roas: 0,
     tacos: 0,
     breakEvenAcos: 0,
-    maxSafeBid: 0,
+    targetAcos: 0,      // NEW
+    maxSafeBid: 0,      // Bid to Break Even
+    goldenBid: 0,       // NEW: Bid to hit Target Profit
     netAdProfit: 0,
     conversionRate: 0,
+    clicksToSale: 0,    // NEW
+    cpa: 0,             // NEW
     status: 'healthy' as 'profitable' | 'break-even' | 'loss'
   });
 
@@ -45,7 +55,6 @@ export default function AdProfitabilityEngine() {
     const roas = adSpend > 0 ? adSales / adSpend : 0;
     
     // B. Advanced TACoS (Total Ad Cost of Sales)
-    // Spend / Total Revenue. Ideally < 15%
     const tacos = totalSales > 0 ? (adSpend / totalSales) * 100 : 0;
 
     // C. Profitability Limits
@@ -53,29 +62,35 @@ export default function AdProfitabilityEngine() {
     const marginPct = sellingPrice > 0 ? (profitMargin / sellingPrice) * 100 : 0;
     
     // Break Even ACOS = Profit Margin %
-    // If you spend 30% on ads and have 30% margin, you make 0.
     const beAcos = marginPct;
 
-    // D. Max Safe Bid
-    // Bid = Price * ConversionRate * TargetACOS
-    // But we need Conversion Rate first.
-    // Clicks = Spend / CPC
-    // Orders = Sales / Price
-    // CR = Orders / Clicks
+    // NEW: Target ACOS (Speed Limit)
+    // If Margin is 30% and I want to keep 10%, I can spend 20% on ads.
+    let targetAcos = beAcos - targetProfitMargin;
+    if (targetAcos < 0) targetAcos = 0;
+
+    // D. Bidding Intelligence
     const clicks = cpc > 0 ? adSpend / cpc : 0;
     const orders = sellingPrice > 0 ? adSales / sellingPrice : 0;
     const cr = clicks > 0 ? (orders / clicks) * 100 : 0;
 
-    // Max Bid to Break Even = Price * CR% * Margin%
-    // Simplified: Profit per unit * CR%
-    const maxBid = profitMargin * (cr / 100);
+    // Max Safe Bid (Break Even) = Price * CR% * Margin%
+    const maxSafeBid = profitMargin * (cr / 100);
 
-    // E. Status
+    // NEW: Golden Bid (Target Profit)
+    // Bid = Price * CR% * TargetACOS%
+    const goldenBid = sellingPrice * (cr / 100) * (targetAcos / 100);
+
+    // E. Funnel Metrics (NEW)
+    const clicksToSale = cr > 0 ? Math.ceil(100 / cr) : 0;
+    const cpa = clicksToSale * cpc; // Cost Per Acquisition (Actual)
+
+    // F. Status
     let status: 'profitable' | 'break-even' | 'loss' = 'profitable';
     if (acos > beAcos) status = 'loss';
     else if (acos > beAcos - 5) status = 'break-even';
 
-    // F. Net Ad Profit (Ad Sales - Spend - COGS of Ad Sales)
+    // G. Net Ad Profit
     const costOfAdGoods = orders * landedCost;
     const netProfit = adSales - adSpend - costOfAdGoods;
 
@@ -84,13 +99,17 @@ export default function AdProfitabilityEngine() {
       roas,
       tacos,
       breakEvenAcos: beAcos,
-      maxSafeBid: maxBid,
+      targetAcos,
+      maxSafeBid,
+      goldenBid,
       netAdProfit: netProfit,
       conversionRate: cr,
+      clicksToSale,
+      cpa,
       status
     });
 
-  }, [adSpend, adSales, totalSales, cpc, sellingPrice, landedCost]);
+  }, [adSpend, adSales, totalSales, cpc, sellingPrice, landedCost, targetProfitMargin]);
 
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
@@ -130,7 +149,6 @@ export default function AdProfitabilityEngine() {
                <h3 className="text-white font-bold flex items-center gap-2 mb-4">
                   <BarChart3 className="w-4 h-4 text-blue-400" /> Campaign Data
                </h3>
-               
                <div className="space-y-4">
                   <div>
                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Ad Spend (₹)</label>
@@ -143,7 +161,6 @@ export default function AdProfitabilityEngine() {
                   <div>
                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Total Sales (Ad + Organic)</label>
                      <input type="number" value={totalSales} onChange={e => setTotalSales(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none" />
-                     <p className="text-[10px] text-slate-500 mt-1">Required for TACoS calculation.</p>
                   </div>
                </div>
             </div>
@@ -153,7 +170,6 @@ export default function AdProfitabilityEngine() {
                <h3 className="text-white font-bold flex items-center gap-2 mb-4">
                   <Target className="w-4 h-4 text-emerald-400" /> Unit Economics
                </h3>
-               
                <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                      <div>
@@ -168,8 +184,22 @@ export default function AdProfitabilityEngine() {
                   <div>
                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Landed Cost</label>
                      <input type="number" value={landedCost} onChange={e => setLandedCost(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm outline-none" />
-                     <p className="text-[10px] text-slate-500 mt-1">Product Cost + Shipping + Amazon Fees</p>
                   </div>
+               </div>
+            </div>
+
+            {/* 3. NEW: Strategy Config */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <Calculator className="w-4 h-4 text-purple-400" /> Profit Strategy
+               </h3>
+               <div>
+                  <div className="flex justify-between mb-1">
+                     <label className="text-xs font-bold text-slate-500 uppercase">Desired Net Margin</label>
+                     <span className="text-xs text-purple-400 font-bold">{targetProfitMargin}%</span>
+                  </div>
+                  <input type="range" min="0" max="30" step="1" value={targetProfitMargin} onChange={e => setTargetProfitMargin(Number(e.target.value))} className="w-full accent-purple-500" />
+                  <p className="text-[10px] text-slate-500 mt-1">I want to keep {targetProfitMargin}% profit after ad spend.</p>
                </div>
             </div>
 
@@ -179,44 +209,30 @@ export default function AdProfitabilityEngine() {
           <div className="lg:col-span-8 space-y-6">
             
             {/* 1. Main KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                
                {/* ACOS */}
-               <div className={`rounded-xl border p-6 ${
-                  metrics.status === 'loss' ? 'bg-red-950/20 border-red-900' : 'bg-slate-900 border-slate-800'
-               }`}>
-                  <div className="flex justify-between items-start mb-2">
-                     <span className="text-xs font-bold text-slate-400 uppercase">ACOS</span>
-                     <TrendingUp className={`w-4 h-4 ${metrics.status === 'loss' ? 'text-red-500' : 'text-emerald-500'}`} />
-                  </div>
-                  <div className="text-3xl font-extrabold text-white mb-1">{metrics.acos.toFixed(1)}%</div>
-                  <p className="text-[10px] text-slate-500">
-                     Break-Even Limit: <span className="text-slate-300">{metrics.breakEvenAcos.toFixed(1)}%</span>
-                  </p>
+               <div className={`rounded-xl border p-4 ${metrics.status === 'loss' ? 'bg-red-950/20 border-red-900' : 'bg-slate-900 border-slate-800'}`}>
+                  <div className="text-xs font-bold text-slate-400 uppercase mb-1">Actual ACOS</div>
+                  <div className="text-2xl font-extrabold text-white mb-1">{metrics.acos.toFixed(1)}%</div>
                </div>
 
                {/* ROAS */}
-               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                  <div className="flex justify-between items-start mb-2">
-                     <span className="text-xs font-bold text-slate-400 uppercase">ROAS</span>
-                     <DollarSign className="w-4 h-4 text-blue-500" />
-                  </div>
-                  <div className="text-3xl font-extrabold text-white mb-1">{metrics.roas.toFixed(2)}x</div>
-                  <p className="text-[10px] text-slate-500">
-                     Return on Ad Spend
-                  </p>
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                  <div className="text-xs font-bold text-slate-400 uppercase mb-1">ROAS</div>
+                  <div className="text-2xl font-extrabold text-white mb-1">{metrics.roas.toFixed(2)}x</div>
                </div>
 
                {/* TACoS */}
-               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                  <div className="flex justify-between items-start mb-2">
-                     <span className="text-xs font-bold text-slate-400 uppercase">TACoS</span>
-                     <PieChart className="w-4 h-4 text-purple-500" />
-                  </div>
-                  <div className="text-3xl font-extrabold text-white mb-1">{metrics.tacos.toFixed(1)}%</div>
-                  <p className="text-[10px] text-slate-500">
-                     Total Spend / Total Revenue. Target &lt; 15%
-                  </p>
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                  <div className="text-xs font-bold text-slate-400 uppercase mb-1">TACoS</div>
+                  <div className="text-2xl font-extrabold text-white mb-1">{metrics.tacos.toFixed(1)}%</div>
+               </div>
+
+               {/* Target ACOS (NEW) */}
+               <div className="bg-purple-900/10 border border-purple-900/50 rounded-xl p-4">
+                  <div className="text-xs font-bold text-purple-300 uppercase mb-1">Target ACOS</div>
+                  <div className="text-2xl font-extrabold text-purple-400 mb-1">{metrics.targetAcos.toFixed(1)}%</div>
                </div>
 
             </div>
@@ -241,37 +257,96 @@ export default function AdProfitabilityEngine() {
                      {metrics.netAdProfit > 0 ? (
                         <p className="text-emerald-400 flex items-center gap-2">
                            <CheckCircle2 className="w-4 h-4" /> 
-                           Your ads are generating real profit after product costs. Scale up!
+                           Your ads are generating real profit. Scale up!
                         </p>
                      ) : (
                         <p className="text-red-400 flex items-center gap-2">
                            <AlertTriangle className="w-4 h-4" /> 
-                           You are losing money on every ad sale. Lower bids or improve conversion.
+                           You are losing money on every ad sale.
                         </p>
                      )}
                   </div>
                </div>
             </div>
 
-            {/* 3. Bid Optimizer */}
-            <div className="bg-indigo-900/10 border border-indigo-900/50 rounded-xl p-6">
-               <h3 className="text-xs font-bold uppercase text-indigo-300 mb-4 flex items-center gap-2">
-                  <Target className="w-4 h-4" /> Bid Optimization
-               </h3>
-               <div className="flex flex-col md:flex-row gap-8 items-center">
-                  <div className="space-y-1">
-                     <span className="text-xs text-slate-400 block">Current Conversion Rate</span>
-                     <span className="text-2xl font-bold text-white">{metrics.conversionRate.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-8 w-px bg-indigo-900 hidden md:block"></div>
-                  <div className="space-y-1">
-                     <span className="text-xs text-slate-400 block">Max Bid to Break-Even</span>
-                     <span className="text-2xl font-bold text-yellow-400">₹{metrics.maxSafeBid.toFixed(2)}</span>
-                  </div>
-                  <div className="flex-1 text-xs text-indigo-200/70 leading-relaxed">
-                     If you bid higher than <b>₹{metrics.maxSafeBid.toFixed(2)}</b>, your ACOS will likely exceed your profit margin, causing a loss. Keep bids below this for profitability.
+            {/* 3. NEW: Bid Optimizer & Funnel */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               
+               {/* Funnel Visualizer */}
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
+                     <MousePointerClick className="w-4 h-4" /> Ad Funnel
+                     
+
+[Image of e-commerce sales funnel]
+
+                  </h3>
+                  <div className="space-y-4">
+                      <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-400">Current Conversion Rate</span>
+                          <span className="text-white font-bold">{metrics.conversionRate.toFixed(1)}%</span>
+                      </div>
+                      <div className="w-full bg-slate-800 h-px"></div>
+                      <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-400">Clicks needed for 1 Sale</span>
+                          <span className="text-white font-bold">{metrics.clicksToSale} clicks</span>
+                      </div>
+                      <div className="w-full bg-slate-800 h-px"></div>
+                      <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-400">Cost Per Acquisition (CPA)</span>
+                          <span className="text-white font-mono">{fmt(metrics.cpa)}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-2">
+                         You spend {fmt(metrics.cpa)} in ads to get 1 order.
+                      </p>
                   </div>
                </div>
+
+               {/* Intelligent Bidding */}
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
+                     <Crosshair className="w-4 h-4" /> Recommended Bids
+                  </h3>
+                  <div className="space-y-4">
+                     <div className="p-3 rounded bg-slate-950 border border-slate-800">
+                        <span className="text-[10px] text-slate-500 uppercase block mb-1">Max Safe Bid (Break-Even)</span>
+                        <div className="flex justify-between items-end">
+                           <span className="text-xl font-bold text-white">₹{metrics.maxSafeBid.toFixed(2)}</span>
+                           <span className="text-[10px] text-yellow-500">0% Profit</span>
+                        </div>
+                     </div>
+
+                     <div className="p-3 rounded bg-purple-900/10 border border-purple-500/30">
+                        <span className="text-[10px] text-purple-300 uppercase block mb-1">Golden Bid (Target Profit)</span>
+                        <div className="flex justify-between items-end">
+                           <span className="text-xl font-bold text-purple-400">₹{metrics.goldenBid.toFixed(2)}</span>
+                           <span className="text-[10px] text-purple-300">{targetProfitMargin}% Profit</span>
+                        </div>
+                     </div>
+                     <p className="text-[10px] text-slate-500">
+                        Bid <b>₹{metrics.goldenBid.toFixed(2)}</b> to maintain your {targetProfitMargin}% margin goal.
+                     </p>
+                  </div>
+               </div>
+
+            </div>
+
+            {/* 4. NEW: Bid Sensitivity Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">Bid Sensitivity (If Conversion Rate improves...)</h3>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                    {[5, 10, 15, 20].map((cv) => (
+                        <div key={cv} className={`p-2 rounded border ${
+                            Math.abs(cv - metrics.conversionRate) < 2.5 ? 'bg-blue-500/20 border-blue-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500'
+                        }`}>
+                            <div className="text-[10px] uppercase mb-1">CvR {cv}%</div>
+                            <div className="font-mono font-bold text-sm">
+                                ₹{((sellingPrice * (cv/100)) * (metrics.targetAcos/100)).toFixed(0)}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <p className="text-[10px] text-slate-500 mt-2 text-center">Max bid power increases significantly as conversion rate improves.</p>
             </div>
 
           </div>
@@ -295,7 +370,7 @@ export default function AdProfitabilityEngine() {
                  <p className="text-sm text-slate-400 leading-relaxed">
                     <b>ACOS</b> checks ad efficiency. <b>TACoS</b> checks business health. 
                     <br/>
-                    If ACOS is high but TACoS is low ( Below 10%), it means your organic sales are strong enough to support aggressive ads.
+                    If ACOS is high but TACoS is low (Below 10%), it means your organic sales are strong enough to support aggressive ads.
                  </p>
               </div>
 
@@ -312,12 +387,12 @@ export default function AdProfitabilityEngine() {
               </div>
 
               <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                 <div className="bg-yellow-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
-                    <Zap className="w-5 h-5 text-yellow-400" />
+                 <div className="bg-purple-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
+                    <Crosshair className="w-5 h-5 text-purple-400" />
                  </div>
-                 <h3 className="font-bold text-white mb-2">Launch Strategy</h3>
+                 <h3 className="font-bold text-white mb-2">Golden Bid Strategy</h3>
                  <p className="text-sm text-slate-400 leading-relaxed">
-                    During a product launch, ignore Profit. Aim for <b>Break-Even ACOS</b> to maximize sales velocity and rank. Profit comes later from organic rank.
+                    Don't just bid to break even. Use the new <b>Golden Bid</b> metric to set bids that ensure you keep {targetProfitMargin}% profit in your pocket.
                  </p>
               </div>
 
