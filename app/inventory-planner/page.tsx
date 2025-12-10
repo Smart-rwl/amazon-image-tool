@@ -11,7 +11,10 @@ import {
   Truck,
   BookOpen,
   Anchor,
-  DollarSign
+  DollarSign,
+  PieChart,       // NEW
+  AlertOctagon,   // NEW
+  ArrowRight      // NEW
 } from 'lucide-react';
 
 export default function SmartInventorySystem() {
@@ -26,9 +29,11 @@ export default function SmartInventorySystem() {
   const [leadTime, setLeadTime] = useState<number>(15); // Days to arrive
   const [safetyDays, setSafetyDays] = useState<number>(7); // Buffer days
   const [orderInterval, setOrderInterval] = useState<number>(30); // How many days of stock to buy (MoQ duration)
+  const [simulateDelay, setSimulateDelay] = useState<boolean>(false); // NEW: Scenario Toggle
 
   // 3. Financials
   const [unitCost, setUnitCost] = useState<number>(400); // Cost to buy 1 unit
+  const [sellingPrice, setSellingPrice] = useState<number>(1200); // NEW: For Revenue Calc
   const [seasonality, setSeasonality] = useState<number>(0); // % Growth expected (e.g., 20% for Q4)
 
   // 4. Outputs
@@ -40,7 +45,11 @@ export default function SmartInventorySystem() {
     status: 'healthy' as 'critical' | 'warning' | 'healthy',
     suggestedOrderQty: 0,
     capitalRequired: 0,
-    safetyStockUnits: 0
+    safetyStockUnits: 0,
+    // NEW METRICS
+    capitalTiedUp: 0,
+    projectedRevenueLoss: 0,
+    gapDays: 0
   });
 
   // --- CALCULATION ENGINE ---
@@ -58,13 +67,15 @@ export default function SmartInventorySystem() {
 
     // C. Reorder Point (ROP) Formula
     // ROP = (Lead Time x Daily Sales) + Safety Stock
+    // NEW: If simulation is ON, we add 7 days to Lead Time perception
+    const effectiveLeadTime = simulateDelay ? leadTime + 7 : leadTime;
+    
     const safetyUnits = Math.ceil(velocity * safetyDays);
-    const leadTimeDemand = Math.ceil(velocity * leadTime);
+    const leadTimeDemand = Math.ceil(velocity * effectiveLeadTime);
     const rop = leadTimeDemand + safetyUnits;
 
     // D. Order Quantity (EOQ Lite)
     // Order = (Order Interval Days * Daily Sales) - (Current Stock - ROP)
-    // Simplified: Target Stock Level - Current Position
     const targetStockLevel = rop + (velocity * orderInterval);
     let orderQty = targetStockLevel - totalStock;
     if (orderQty < 0) orderQty = 0;
@@ -76,6 +87,17 @@ export default function SmartInventorySystem() {
 
     // F. Financials
     const capital = orderQty * unitCost;
+    const tiedCapital = currentStock * unitCost; // NEW
+
+    // G. Lost Revenue Calculation (The "Gap")
+    // If Days Left < Lead Time, we WILL stock out before new stock arrives.
+    let revenueLoss = 0;
+    let gap = 0;
+    if (daysLeft < effectiveLeadTime) {
+        gap = effectiveLeadTime - daysLeft;
+        const lostUnits = gap * velocity;
+        revenueLoss = lostUnits * sellingPrice;
+    }
 
     setMetrics({
       burnRate: velocity,
@@ -85,10 +107,13 @@ export default function SmartInventorySystem() {
       status,
       suggestedOrderQty: Math.ceil(orderQty),
       capitalRequired: capital,
-      safetyStockUnits: safetyUnits
+      safetyStockUnits: safetyUnits,
+      capitalTiedUp: tiedCapital,
+      projectedRevenueLoss: revenueLoss,
+      gapDays: gap
     });
 
-  }, [currentStock, inboundStock, dailySales, leadTime, safetyDays, orderInterval, unitCost, seasonality]);
+  }, [currentStock, inboundStock, dailySales, leadTime, safetyDays, orderInterval, unitCost, seasonality, sellingPrice, simulateDelay]);
 
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
@@ -104,7 +129,7 @@ export default function SmartInventorySystem() {
               Smart Restock Intelligence
             </h1>
             <p className="text-slate-400 mt-2">
-              Prevent stockouts with Safety Stock & Seasonality analysis.
+              Prevent stockouts with Safety Stock, Seasonality & Risk analysis.
             </p>
           </div>
           <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
@@ -181,6 +206,20 @@ export default function SmartInventorySystem() {
                         <input type="number" value={orderInterval} onChange={e => setOrderInterval(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-orange-500 outline-none" />
                      </div>
                   </div>
+                  
+                  {/* NEW: Simulation Toggle */}
+                  <div className={`mt-4 p-3 rounded-lg border flex items-center gap-3 cursor-pointer transition-colors ${
+                      simulateDelay ? 'bg-red-900/20 border-red-500/50' : 'bg-slate-950 border-slate-700 hover:border-slate-600'
+                  }`} onClick={() => setSimulateDelay(!simulateDelay)}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${simulateDelay ? 'bg-red-500 border-red-500' : 'border-slate-500'}`}>
+                          {simulateDelay && <CheckCircle2 className="w-3 h-3 text-white" />}
+                      </div>
+                      <div>
+                          <span className={`text-xs font-bold block ${simulateDelay ? 'text-red-300' : 'text-slate-400'}`}>Simulate Delay</span>
+                          <span className="text-[10px] text-slate-500">What if supplier is 7 days late?</span>
+                      </div>
+                  </div>
+
                </div>
             </div>
 
@@ -230,12 +269,13 @@ export default function SmartInventorySystem() {
                </div>
             </div>
 
-            {/* 2. Timeline Dashboard */}
+            {/* 2. Timeline & Risk Dashboard */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                
+               {/* Inventory Runway */}
                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
                   <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
-                     <CalendarDays className="w-4 h-4" /> Days of Inventory
+                     <CalendarDays className="w-4 h-4" /> Inventory Runway
                   </h3>
                   <div className="flex items-baseline gap-2 mb-2">
                      <span className={`text-4xl font-bold ${metrics.daysOfInventory < leadTime ? 'text-red-400' : 'text-white'}`}>
@@ -243,34 +283,67 @@ export default function SmartInventorySystem() {
                      </span>
                      <span className="text-sm text-slate-400">days left</span>
                   </div>
-                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-2">
+                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-2 relative">
                      <div 
                         className={`h-full ${metrics.daysOfInventory < 15 ? 'bg-red-500' : 'bg-blue-500'}`} 
                         style={{ width: `${Math.min(metrics.daysOfInventory, 100)}%` }}
                      ></div>
+                     {/* Lead Time Marker */}
+                     <div 
+                        className="absolute top-0 bottom-0 w-0.5 bg-white opacity-50" 
+                        style={{ left: `${Math.min(leadTime, 100)}%` }} 
+                        title="Lead Time Threshold"
+                     ></div>
                   </div>
-                  <p className="text-xs text-slate-500 mt-3">
-                     Projected stockout: <b className="text-slate-300">{metrics.stockoutDate}</b>
-                  </p>
+                  <div className="flex justify-between text-[10px] text-slate-500 mt-2">
+                      <span>Empty: <b className="text-slate-300">{metrics.stockoutDate}</b></span>
+                      <span>Lead Time: {leadTime}d</span>
+                  </div>
+
+                  {/* NEW: Risk Analysis */}
+                  {metrics.projectedRevenueLoss > 0 && (
+                      <div className="mt-4 p-3 bg-red-900/20 border border-red-900/50 rounded-lg flex items-start gap-3">
+                          <AlertOctagon className="w-5 h-5 text-red-400 shrink-0" />
+                          <div>
+                              <p className="text-xs text-red-300 font-bold mb-1">Stockout Inevitable</p>
+                              <p className="text-[10px] text-red-200/70 leading-tight">
+                                  You have {Math.floor(metrics.daysOfInventory)} days of stock, but lead time is {simulateDelay ? leadTime + 7 : leadTime} days. 
+                                  <br/>
+                                  <span className="text-white font-bold mt-1 block">Est. Revenue Loss: {fmt(metrics.projectedRevenueLoss)}</span>
+                              </p>
+                          </div>
+                      </div>
+                  )}
                </div>
 
-               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                  <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
-                     <DollarSign className="w-4 h-4" /> Unit Cost Config
-                  </h3>
-                  <div className="flex items-center gap-2 mb-4">
-                     <span className="text-slate-400 text-sm">Cost per Unit:</span>
-                     <input 
-                        type="number" 
-                        value={unitCost} 
-                        onChange={e => setUnitCost(Number(e.target.value))} 
-                        className="w-24 bg-slate-950 border border-slate-700 rounded p-1 text-white text-sm text-center"
-                     />
+               {/* Financial Config & Health */}
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
+                        <PieChart className="w-4 h-4" /> Capital Efficiency
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <span className="text-[10px] text-slate-400 block mb-1">Unit Cost</span>
+                            <input 
+                                type="number" value={unitCost} onChange={e => setUnitCost(Number(e.target.value))} 
+                                className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white text-sm"
+                            />
+                        </div>
+                        <div>
+                            <span className="text-[10px] text-slate-400 block mb-1">Selling Price</span>
+                            <input 
+                                type="number" value={sellingPrice} onChange={e => setSellingPrice(Number(e.target.value))} 
+                                className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white text-sm"
+                            />
+                        </div>
+                    </div>
                   </div>
-                  <div className="p-3 bg-blue-900/20 border border-blue-900/50 rounded-lg text-xs text-blue-200">
-                     <p>
-                        Knowing your capital requirement helps you prepare cash flow before placing the PO.
-                     </p>
+
+                  <div className="p-4 bg-slate-950 rounded-lg border border-slate-800">
+                      <span className="text-xs text-slate-500 uppercase font-bold block mb-1">Dead Inventory Value</span>
+                      <div className="text-2xl font-bold text-white">{fmt(metrics.capitalTiedUp)}</div>
+                      <p className="text-[10px] text-slate-500 mt-1">Cash tied up in current stock.</p>
                   </div>
                </div>
 
@@ -278,7 +351,7 @@ export default function SmartInventorySystem() {
 
             {/* 3. Diagnostics */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-               <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">System Status</h3>
+               <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">System Diagnostics</h3>
                <div className="flex items-center gap-4">
                   {metrics.status === 'critical' && (
                      <div className="flex items-center gap-3 text-red-400 bg-red-950/30 p-3 rounded-lg border border-red-900 w-full">
@@ -319,7 +392,11 @@ export default function SmartInventorySystem() {
                  </div>
                  <h3 className="font-bold text-white mb-2">Safety Stock</h3>
                  <p className="text-sm text-slate-400 leading-relaxed">
-                    Never aim for 0 stock. Safety Stock is your insurance against supplier delays or sudden sales spikes. 
+                    Never aim for 0 stock. Safety Stock is your insurance against supplier delays. 
+                    
+
+[Image of inventory buffer graph]
+
                     <br/>
                     <b>Recommended:</b> 7-14 days for local suppliers, 30 days for imports.
                  </p>
