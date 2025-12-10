@@ -1,4 +1,7 @@
 // app/dashboard/page.tsx
+export const dynamic = 'force-dynamic';
+
+
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 
