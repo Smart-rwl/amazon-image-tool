@@ -7,10 +7,13 @@ import {
   AlertTriangle, 
   DollarSign, 
   Box, 
-  BookOpen,
-  ArrowRight,
-  TrendingUp,
-  Snowflake
+  BookOpen, 
+  ArrowRight, 
+  TrendingUp, 
+  Snowflake,
+  Timer,       // NEW
+  Scale,       // NEW
+  Trash2       // NEW
 } from 'lucide-react';
 
 const CM3_TO_FT3 = 28316.8; 
@@ -23,6 +26,11 @@ export default function WarehouseCostAnalyzer() {
   const [width, setWidth] = useState<number>(10);
   const [height, setHeight] = useState<number>(5);
   const [units, setUnits] = useState<number>(500);
+
+  // 1.5 NEW: Financial Context (For ROI Calc)
+  const [sellingPrice, setSellingPrice] = useState<number>(1200);
+  const [landedCost, setLandedCost] = useState<number>(400); // Product + Shipping cost
+  const [removalCostPerUnit, setRemovalCostPerUnit] = useState<number>(10); // Cost to remove/dispose 1 unit
 
   // 2. Fee Config
   const [baseRate, setBaseRate] = useState<number>(45); // e.g. ₹45/ft3 (Standard)
@@ -37,7 +45,13 @@ export default function WarehouseCostAnalyzer() {
     monthlyPeak: 0,
     potentialLTSF: 0,
     annualCost: 0,
-    status: 'efficient' as 'efficient' | 'heavy'
+    status: 'efficient' as 'efficient' | 'heavy',
+    // NEW METRICS
+    totalProfitAtRisk: 0,
+    timeToZeroProfit: 0, // Months until profit is eaten
+    valueDensity: 0,     // Profit per cubic foot
+    removalVerdict: 'Hold', // Hold vs Liquidate
+    removalSavings: 0
   });
 
   // --- ENGINE ---
@@ -58,6 +72,22 @@ export default function WarehouseCostAnalyzer() {
     let status: 'efficient' | 'heavy' = 'efficient';
     if (volFt > 0.1) status = 'heavy'; // Large item warning
 
+    // D. NEW: Advanced Economics
+    const unitProfit = sellingPrice - landedCost;
+    const totalBatchProfit = unitProfit * units;
+    
+    // "Death Date": Total Profit / Monthly Burn Rate (Standard)
+    const monthsToBurn = costStd > 0 ? totalBatchProfit / costStd : 999;
+
+    // Value Density: How much profit does 1 cubic foot of this product generate?
+    // High is good. Low means you are storing "Air".
+    const valDensity = totalFt > 0 ? totalBatchProfit / totalFt : 0;
+
+    // Liquidation Verdict: Is LTSF Cost > Removal Cost?
+    const totalRemovalCost = units * removalCostPerUnit;
+    const verdict = costLtsf > totalRemovalCost ? 'LIQUIDATE' : 'HOLD';
+    const savings = Math.abs(costLtsf - totalRemovalCost);
+
     setMetrics({
       unitVolFt: volFt,
       totalVolFt: totalFt,
@@ -65,10 +95,15 @@ export default function WarehouseCostAnalyzer() {
       monthlyPeak: costPeak,
       potentialLTSF: costLtsf,
       annualCost: annual,
-      status
+      status,
+      totalProfitAtRisk: totalBatchProfit,
+      timeToZeroProfit: monthsToBurn,
+      valueDensity: valDensity,
+      removalVerdict: verdict,
+      removalSavings: savings
     });
 
-  }, [length, width, height, units, baseRate, peakRate, ltsfRate]);
+  }, [length, width, height, units, baseRate, peakRate, ltsfRate, sellingPrice, landedCost, removalCostPerUnit]);
 
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
@@ -84,7 +119,7 @@ export default function WarehouseCostAnalyzer() {
               Warehouse Cost Analyzer
             </h1>
             <p className="text-slate-400 mt-2">
-              Predict storage fees, peak season surges, and long-term penalties.
+              Predict storage fees, peak season surges, and calculate inventory "Death Dates".
             </p>
           </div>
           <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 text-sm text-slate-400">
@@ -126,7 +161,31 @@ export default function WarehouseCostAnalyzer() {
                </div>
             </div>
 
-            {/* 2. Rate Card */}
+            {/* 2. NEW: Financials */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+               <h3 className="text-white font-bold flex items-center gap-2 mb-4">
+                  <Scale className="w-4 h-4 text-purple-400" /> Unit Economics
+               </h3>
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Selling Price</label>
+                        <input type="number" value={sellingPrice} onChange={e => setSellingPrice(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm focus:border-purple-500 outline-none" />
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Product Cost</label>
+                        <input type="number" value={landedCost} onChange={e => setLandedCost(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm focus:border-purple-500 outline-none" />
+                     </div>
+                  </div>
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Removal Fee (per unit)</label>
+                     <input type="number" value={removalCostPerUnit} onChange={e => setRemovalCostPerUnit(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm focus:border-purple-500 outline-none" />
+                     <p className="text-[10px] text-slate-500 mt-1">Cost to ship back to you (approx ₹10-30)</p>
+                  </div>
+               </div>
+            </div>
+
+            {/* 3. Rate Card */}
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
                <h3 className="text-white font-bold flex items-center gap-2 mb-4">
                   <DollarSign className="w-4 h-4 text-emerald-400" /> Fee Rates (per ft³)
@@ -172,82 +231,90 @@ export default function WarehouseCostAnalyzer() {
 
             </div>
 
-            {/* 2. LTSF Warning */}
-            <div className="bg-red-950/20 border border-red-900/50 rounded-xl p-8 flex flex-col md:flex-row items-center gap-8">
-               <div className="p-4 bg-red-900/20 rounded-full">
-                  <AlertTriangle className="w-10 h-10 text-red-500" />
-               </div>
-               <div className="flex-1 text-center md:text-left">
-                  <h3 className="text-xl font-bold text-red-400 mb-2">Long-Term Storage Danger</h3>
-                  <p className="text-sm text-red-200/70 leading-relaxed mb-4">
-                     If this inventory sits unsold for 365 days, Amazon will charge you a massive penalty fee.
-                  </p>
-                  <div className="text-5xl font-mono font-black text-red-500">{fmt(metrics.potentialLTSF)}</div>
-                  <p className="text-xs text-red-400/50 mt-1">Projected monthly penalty</p>
-               </div>
+            {/* 2. NEW: Inventory "Death Date" Analysis */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 relative overflow-hidden">
+                <div className="flex flex-col md:flex-row gap-8 items-center relative z-10">
+                    <div>
+                        <h3 className="text-xs font-bold uppercase text-slate-500 mb-2 flex items-center gap-2">
+                            <Timer className="w-4 h-4" /> Break-Even Time
+                        </h3>
+                        <div className="flex items-baseline gap-2">
+                            <span className={`text-5xl font-black ${metrics.timeToZeroProfit < 6 ? 'text-red-500' : 'text-white'}`}>
+                                {metrics.timeToZeroProfit.toFixed(1)}
+                            </span>
+                            <span className="text-lg text-slate-400 font-medium">Months</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2 max-w-sm">
+                            If you don't sell this stock within {metrics.timeToZeroProfit.toFixed(1)} months, your storage fees will exceed your total potential profit.
+                        </p>
+                    </div>
+                    
+                    <div className="h-16 w-px bg-slate-800 hidden md:block"></div>
+
+                    <div>
+                        <h3 className="text-xs font-bold uppercase text-slate-500 mb-2 flex items-center gap-2">
+                            <Scale className="w-4 h-4" /> Value Density
+                        </h3>
+                        <div className="text-2xl font-bold text-white mb-1">
+                            {fmt(metrics.valueDensity)} <span className="text-sm text-slate-500 font-normal">/ ft³</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                            High density = Efficient. Low density = You are paying to store air.
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            {/* 3. Annual Projection */}
-            <div className="bg-indigo-900/10 border border-indigo-900/50 rounded-xl p-6">
-               <h3 className="text-xs font-bold uppercase text-indigo-300 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" /> Annual Liability Forecast
-               </h3>
-               <div className="flex flex-col md:flex-row gap-8 items-center">
-                  <div className="space-y-1">
-                     <span className="text-xs text-slate-400 block">Total Holding Cost (1 Year)</span>
-                     <span className="text-3xl font-bold text-white">{fmt(metrics.annualCost)}</span>
-                  </div>
-                  <div className="h-8 w-px bg-indigo-900 hidden md:block"></div>
-                  <div className="flex-1 text-xs text-indigo-200/70 leading-relaxed">
-                     This projection assumes you sell nothing and hold stock for 12 months. It includes 9 months of Standard fees and 3 months of Peak fees.
-                  </div>
+            {/* 3. NEW: The Liquidation Matrix */}
+            <div className={`rounded-xl border p-6 flex flex-col md:flex-row items-center justify-between gap-6 ${
+                metrics.removalVerdict === 'LIQUIDATE' ? 'bg-red-950/20 border-red-900' : 'bg-emerald-950/20 border-emerald-900'
+            }`}>
+                <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-full ${metrics.removalVerdict === 'LIQUIDATE' ? 'bg-red-500/20 text-red-500' : 'bg-emerald-500/20 text-emerald-500'}`}>
+                        {metrics.removalVerdict === 'LIQUIDATE' ? <Trash2 className="w-6 h-6" /> : <Archive className="w-6 h-6" />}
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-white text-lg">Verdict: {metrics.removalVerdict}</h3>
+                        <p className="text-xs text-slate-400">Comparing Aged Penalty vs. Removal Cost</p>
+                    </div>
+                </div>
+                
+                <div className="text-right">
+                    <p className="text-xs text-slate-500 uppercase font-bold mb-1">
+                        {metrics.removalVerdict === 'LIQUIDATE' ? 'Potential Savings' : 'Cost Difference'}
+                    </p>
+                    <p className={`text-2xl font-mono font-bold ${metrics.removalVerdict === 'LIQUIDATE' ? 'text-emerald-400' : 'text-slate-300'}`}>
+                        {fmt(metrics.removalSavings)}
+                    </p>
+                </div>
+            </div>
+
+            {/* 4. Strategy Guide */}
+            <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+               <div className="flex items-center gap-2 mb-4">
+                   <BookOpen className="w-5 h-5 text-indigo-500" />
+                   <h3 className="font-bold text-white">Storage Strategy</h3>
+               </div>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div>
+                       <h4 className="text-sm font-bold text-slate-300 mb-1">Standard vs. Peak</h4>
+                       <p className="text-xs text-slate-500 leading-relaxed">
+                           Amazon charges <b>~3x more</b> in Oct-Dec. If your "Time to Zero Profit" is less than 4 months, do NOT send this stock in for Q4 unless you are sure it will sell immediately.
+                       </p>
+                   </div>
+                   <div>
+                       <h4 className="text-sm font-bold text-red-300 mb-1">The 365-Day Cliff</h4>
+                       <p className="text-xs text-slate-500 leading-relaxed">
+                           
+                           Once stock hits 365 days, the monthly fee jumps 10x. It is almost always cheaper to create a "Removal Order" (₹10/unit) than to pay the Long-Term Storage Fee.
+                       </p>
+                   </div>
                </div>
             </div>
 
           </div>
 
-        </div>
-
-        {/* --- GUIDE SECTION --- */}
-        <div className="border-t border-slate-800 pt-10">
-           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-indigo-500" />
-              Storage Strategy Guide
-           </h2>
-           
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                 <div className="bg-blue-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
-                    <Box className="w-5 h-5 text-blue-400" />
-                 </div>
-                 <h3 className="font-bold text-white mb-2">CBM vs. Cubic Foot</h3>
-                 <p className="text-sm text-slate-400 leading-relaxed">
-                    Factories use CBM. Amazon uses Cubic Feet. The conversion factor is <b>28,316</b> (1 CBM approx 35.3 ft³). This tool does that math for you.
-                 </p>
-              </div>
-
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                 <div className="bg-red-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
-                    <AlertTriangle className="w-5 h-5 text-red-400" />
-                 </div>
-                 <h3 className="font-bold text-white mb-2">The LTSF Trap</h3>
-                 <p className="text-sm text-slate-400 leading-relaxed">
-                    Long Term fees are <b>10x-20x higher</b> than normal fees. Never keep stock older than 365 days. Liquidate or donate it before the deadline.
-                 </p>
-              </div>
-
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
-                    <Snowflake className="w-5 h-5 text-emerald-400" />
-                 </div>
-                 <h3 className="font-bold text-white mb-2">Q4 Peak Season</h3>
-                 <p className="text-sm text-slate-400 leading-relaxed">
-                    In October, November, and December, Amazon triples the storage fee. Do not overstock for Q4 unless your sales velocity justifies it.
-                 </p>
-              </div>
-
-           </div>
         </div>
 
       </div>
