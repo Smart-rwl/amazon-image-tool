@@ -10,7 +10,9 @@ import {
   Tag, 
   BookOpen,
   Zap,
-  BarChart3
+  BarChart3,
+  ArrowUpRight, // NEW
+  Scale         // NEW
 } from 'lucide-react';
 
 type SimulationRow = {
@@ -21,6 +23,9 @@ type SimulationRow = {
   margin: number;
   roi: number;
   dealType: string;
+  // NEW FIELDS
+  breakEvenLift: number; // % increase in sales needed
+  riskLevel: 'Safe' | 'Moderate' | 'High' | 'Extreme';
 };
 
 export default function PromotionSimulator() {
@@ -36,9 +41,16 @@ export default function PromotionSimulator() {
 
   // --- ENGINE ---
   useEffect(() => {
+    // 1. Calculate BASELINE (0% discount) for comparison
+    const baseNewPrice = sellingPrice;
+    const baseRefFee = baseNewPrice * (referralFeePct / 100);
+    const baseTaxBase = baseNewPrice / (1 + gstRate / 100);
+    const baseTaxAmount = baseNewPrice - baseTaxBase;
+    const baseProfit = baseNewPrice - baseTaxAmount - landedCost - baseRefFee;
+
     const rows: SimulationRow[] = [];
 
-    // Simulate discounts from 5% to 90%
+    // Simulate discounts from 0% to 80%
     for (let d = 0; d <= 80; d += 5) {
       // 1. New Price
       const newPrice = sellingPrice * (1 - d / 100);
@@ -47,15 +59,10 @@ export default function PromotionSimulator() {
       const refFee = newPrice * (referralFeePct / 100);
       
       // 3. Tax (GST on Price is standard in India, usually inclusive)
-      // Assuming Price is Inclusive: Base = Price / 1.18
       const basePrice = newPrice / (1 + gstRate / 100);
       const taxAmount = newPrice - basePrice;
 
       // 4. Profit
-      // Net = BasePrice - LandedCost - RefFee(Base) -> Simplified:
-      // Profit = (NewPrice - Tax) - LandedCost - RefFee
-      // Note: Referral fee is usually calculated on the Gross Price including tax
-      
       const profit = newPrice - taxAmount - landedCost - refFee;
       
       // 5. Metrics
@@ -71,6 +78,22 @@ export default function PromotionSimulator() {
       if (d >= 60) type = 'Liquidation / Clearance';
       if (d === 0) type = 'Organic Sales';
 
+      // 7. NEW: Break-Even Sales Lift Calculation
+      // Formula: Required Lift % = (Base Margin % - Deal Margin %) / Deal Margin %
+      // OR simpler: (Base Profit - Deal Profit) / Deal Profit
+      let lift = 0;
+      if (profit > 0 && baseProfit > 0) {
+          lift = ((baseProfit - profit) / profit) * 100;
+      } else if (profit <= 0) {
+          lift = 9999; // Infinite lift needed
+      }
+
+      // 8. NEW: Risk Assessment
+      let risk: 'Safe' | 'Moderate' | 'High' | 'Extreme' = 'Safe';
+      if (lift > 300) risk = 'Extreme';
+      else if (lift > 100) risk = 'High';
+      else if (lift > 40) risk = 'Moderate';
+
       rows.push({
         discountPct: d,
         dealPrice: newPrice,
@@ -78,7 +101,9 @@ export default function PromotionSimulator() {
         netProfit: profit,
         margin,
         roi,
-        dealType: type
+        dealType: type,
+        breakEvenLift: lift,
+        riskLevel: risk
       });
     }
     setSimulations(rows);
@@ -98,12 +123,12 @@ export default function PromotionSimulator() {
               Promotion Profitability Simulator
             </h1>
             <p className="text-slate-400 mt-2">
-              Forecast net margins across Lightning Deals, Coupons, and Clearance events.
+              Forecast net margins & required sales velocity for Lightning Deals & Clearance.
             </p>
           </div>
           <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
-             <BarChart3 className="w-4 h-4 text-slate-400" />
-             <span className="text-sm font-medium text-slate-300">Live P&L Calculation</span>
+             <Scale className="w-4 h-4 text-slate-400" />
+             <span className="text-sm font-medium text-slate-300">Live Volume Analysis</span>
           </div>
         </div>
 
@@ -150,9 +175,12 @@ export default function PromotionSimulator() {
             </div>
 
             <div className="bg-indigo-900/20 border border-indigo-900/50 p-5 rounded-xl">
-               <h4 className="text-indigo-300 font-bold text-sm mb-2">Did you know?</h4>
+               <h4 className="text-indigo-300 font-bold text-sm mb-2 flex items-center gap-2">
+                   <ArrowUpRight className="w-4 h-4" /> The "Volume Trap"
+               </h4>
                <p className="text-xs text-indigo-200/70 leading-relaxed">
-                  When you lower your price, you pay <b>less Referral Fee</b>. This simulator calculates that saving automatically, so your actual profit might be higher than you think!
+                  Look at the new <b>Req. Lift</b> column. <br/><br/>
+                  If it says <b>+100%</b>, you must sell <b>DOUBLE</b> the units just to make the same total profit you make today. Don't discount unless you are sure you can hit that volume!
                </p>
             </div>
           </div>
@@ -169,6 +197,8 @@ export default function PromotionSimulator() {
                            <th className="px-4 py-3">Price</th>
                            <th className="px-4 py-3">Profit</th>
                            <th className="px-4 py-3">ROI</th>
+                           {/* NEW COLUMN HEADERS */}
+                           <th className="px-4 py-3 text-right">Req. Lift</th>
                            <th className="px-4 py-3 text-right">Status</th>
                         </tr>
                      </thead>
@@ -194,17 +224,36 @@ export default function PromotionSimulator() {
                               <td className="px-4 py-3 font-mono">
                                  {row.roi.toFixed(0)}%
                               </td>
+                              
+                              {/* NEW: Required Sales Lift */}
+                              <td className="px-4 py-3 text-right">
+                                  {row.discountPct === 0 ? (
+                                      <span className="text-slate-600">-</span>
+                                  ) : (
+                                      <span className={`font-mono font-bold ${
+                                          row.breakEvenLift > 100 ? 'text-red-400' : 
+                                          row.breakEvenLift > 40 ? 'text-orange-400' : 'text-blue-400'
+                                      }`}>
+                                          +{row.breakEvenLift > 2000 ? '>2000' : row.breakEvenLift.toFixed(0)}%
+                                      </span>
+                                  )}
+                              </td>
+
                               <td className="px-4 py-3 text-right">
                                  {row.netProfit > 0 ? (
-                                    row.roi > 30 ? (
+                                    row.roi > 30 && row.riskLevel === 'Safe' ? (
                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
                                           <CheckCircle2 className="w-3 h-3" /> GREAT
                                        </span>
-                                    ) : (
+                                     ) : row.riskLevel === 'Extreme' ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 text-red-400 text-[10px] font-bold border border-red-500/20">
+                                            TRAP
+                                        </span>
+                                     ) : (
                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20">
                                           OK
                                        </span>
-                                    )
+                                     )
                                  ) : (
                                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 text-red-400 text-[10px] font-bold border border-red-500/20">
                                        <AlertTriangle className="w-3 h-3" /> LOSS
@@ -237,17 +286,17 @@ export default function PromotionSimulator() {
                  <p className="text-sm text-slate-400 leading-relaxed">
                     Amazon usually requires a minimum <b>20% discount</b> off the lowest price in the last 30 days.
                     <br/><br/>
-                    <b>When to use:</b> Use LDs to spike sales velocity and improve organic ranking for a keyword. Accept lower margins (or even break-even) for the visibility boost.
+                    <b>When to use:</b> Use LDs to spike sales velocity.
                  </p>
               </div>
 
               <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
                  <div className="bg-red-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
-                    <Tag className="w-5 h-5 text-red-400" />
+                    <ArrowUpRight className="w-5 h-5 text-red-400" />
                  </div>
-                 <h3 className="font-bold text-white mb-2">Liquidation Strategy</h3>
+                 <h3 className="font-bold text-white mb-2">The Volume Trap</h3>
                  <p className="text-sm text-slate-400 leading-relaxed">
-                    Look at the <b>60%+ rows</b>. If you have "Dead Stock" (items not selling), it is cheaper to sell them at a small loss here than to pay Amazon "Long Term Storage Fees" every month.
+                    Look at the <b>Req. Lift</b> column. If it says <b>+100%</b>, you need to double your sales just to make the same money. If you usually sell 10 units/day, you MUST sell 20 units/day during the deal to break even.
                  </p>
               </div>
 
