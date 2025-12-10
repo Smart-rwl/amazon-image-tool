@@ -34,6 +34,7 @@ export const TOOLS: ToolItem[] = [
   { slug: 'ltsf-calculator',     label: 'LTSF Calculator',     desc: 'Long-term storage impact', group: 'finance' },
 
   // --- Listing Tools ---
+  { slug: 'amazon-image-tool',         label: 'Rename Images faster',   desc: 'Rename .MAIN, PT01.. Easily',     group: 'listing' },
   { slug: 'keywords',         label: 'Keyword Explorer',   desc: 'Seed & long-tail ideas',     group: 'listing' },
   { slug: 'keyword-density',  label: 'Keyword Density',    desc: 'Competitor copy coverage',   group: 'listing' },
   { slug: 'keyword-mixer',    label: 'Keyword Mixer',      desc: 'Phrase / exact mixing',      group: 'listing' },
