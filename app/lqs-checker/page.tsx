@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation'; // Added for Extension integration
 import { 
   CheckCircle2, 
   XCircle, 
@@ -11,7 +12,8 @@ import {
   Image as ImageIcon,
   Type,
   Video,
-  Star
+  Star,
+  Zap // Added icon for "Auto-Detected"
 } from 'lucide-react';
 
 type AuditItem = {
@@ -36,12 +38,59 @@ const INITIAL_ITEMS: AuditItem[] = [
   { id: 'prime', label: 'Prime Eligible', weight: 5, category: 'reviews', checked: false, tip: 'FBA listings rank higher.' },
 ];
 
-export default function SmartListingAuditor() {
+function AuditorContent() {
   // --- STATE ---
   const [items, setItems] = useState<AuditItem[]>(INITIAL_ITEMS);
   const [score, setScore] = useState(0);
   const [grade, setGrade] = useState('F');
   const [status, setStatus] = useState('Critical');
+  const [isAutoFilled, setIsAutoFilled] = useState(false); // New State to show "Detected" badge
+  
+  const searchParams = useSearchParams();
+
+  // --- NEW: CHROME EXTENSION LISTENER & ADVANCED LOGIC ---
+  useEffect(() => {
+    const autoFillData = searchParams.get('auto_fill');
+
+    if (autoFillData) {
+      try {
+        const data = JSON.parse(decodeURIComponent(autoFillData));
+        
+        // Map the raw data to our Checklist Logic
+        const newItems = items.map(item => {
+          // Logic 1: Title Length Strategy
+          if (item.id === 'title') {
+            return { ...item, checked: (data.title && data.title.length > 150) };
+          }
+          // Logic 2: Bullet Count Strategy
+          if (item.id === 'bullets') {
+            return { ...item, checked: (data.bullets && data.bullets >= 5) };
+          }
+          // Logic 3: Image Count Strategy
+          if (item.id === 'images') {
+            return { ...item, checked: (data.images && data.images >= 7) };
+          }
+          // Logic 4: Video Detection
+          if (item.id === 'video') {
+            return { ...item, checked: !!data.hasVideo };
+          }
+          // Logic 5: Rating Check (if data exists)
+          if (item.id === 'reviews' && data.rating) {
+             // Extract number from string like "4.5 out of 5 stars" if needed
+             const ratingVal = parseFloat(data.rating); 
+             return { ...item, checked: (!isNaN(ratingVal) && ratingVal >= 4.0) };
+          }
+          
+          return item;
+        });
+
+        setItems(newItems);
+        setIsAutoFilled(true);
+      } catch (e) {
+        console.error("Failed to parse extension data", e);
+      }
+    }
+  }, [searchParams]);
 
   // --- ENGINE ---
   useEffect(() => {
@@ -79,9 +128,18 @@ export default function SmartListingAuditor() {
               Evaluate your Amazon listing against the top 10 ranking factors.
             </p>
           </div>
-          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 text-sm text-slate-400">
-             <BarChart3 className="w-4 h-4 text-emerald-500" />
-             <span>Algorithm: Amazon A10 Weights</span>
+          
+          <div className="flex gap-3">
+            {isAutoFilled && (
+               <div className="flex items-center gap-2 bg-blue-500/10 px-4 py-2 rounded-lg border border-blue-500/50 text-sm text-blue-400 animate-pulse">
+                  <Zap className="w-4 h-4" />
+                  <span>Data Auto-Detected</span>
+               </div>
+            )}
+            <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 text-sm text-slate-400">
+                <BarChart3 className="w-4 h-4 text-emerald-500" />
+                <span>Algorithm: Amazon A10 Weights</span>
+            </div>
           </div>
         </div>
 
@@ -303,5 +361,14 @@ export default function SmartListingAuditor() {
 
       </div>
     </div>
+  );
+}
+
+// Wrap in Suspense for Next.js 13+ client component requirements with searchParams
+export default function SmartListingAuditor() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-500">Loading Auditor...</div>}>
+      <AuditorContent />
+    </Suspense>
   );
 }
