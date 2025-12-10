@@ -9,7 +9,9 @@ import {
   AlertTriangle,
   BookOpen,
   Activity,
-  CheckCircle2 // <--- Added this missing import
+  CheckCircle2,
+  LifeBuoy, // NEW
+  Ban       // NEW
 } from 'lucide-react';
 
 export default function AccountHealthIntelligence() {
@@ -28,7 +30,8 @@ export default function AccountHealthIntelligence() {
     ordersNeeded: 0,
     daysToRecover: 0,
     status: 'safe' as 'safe' | 'warning' | 'critical' | 'suspended',
-    riskScore: 0
+    riskScore: 0,
+    defectBuffer: 0 // NEW
   });
 
   // --- ENGINE ---
@@ -37,11 +40,6 @@ export default function AccountHealthIntelligence() {
     const odr = totalOrders > 0 ? (defects / totalOrders) * 100 : 0;
     
     // B. Recovery Math (Target < 1%)
-    // Formula: defects / (totalOrders + X) = 0.009 (Target 0.9%)
-    // defects = 0.009 * (totalOrders + X)
-    // defects / 0.009 = totalOrders + X
-    // X = (defects / 0.009) - totalOrders
-    
     const targetRate = 0.009; // 0.9% safety buffer
     let needed = 0;
     
@@ -53,14 +51,20 @@ export default function AccountHealthIntelligence() {
     // C. Time to Recover
     const days = dailyVelocity > 0 ? Math.ceil(needed / dailyVelocity) : 0;
 
-    // D. Risk Logic
+    // D. NEW: "Survival Buffer" Calculation
+    // How many defects can I take before hitting 1%?
+    // 1% of Total Orders = Max Allowable Defects
+    const maxDefects = Math.floor(totalOrders * 0.01);
+    const buffer = maxDefects - defects;
+
+    // E. Risk Logic
     let status: 'safe' | 'warning' | 'critical' | 'suspended' = 'safe';
     let risk = 0; // 0-100 scale for UI gauge
 
-    if (odr < 1) {
+    if (odr < 0.7) {
       status = 'safe';
       risk = (odr / 1) * 60; // 0% to 60% gauge fill
-    } else if (odr < 1.5) {
+    } else if (odr < 1) {
       status = 'warning';
       risk = 75;
     } else {
@@ -70,7 +74,7 @@ export default function AccountHealthIntelligence() {
 
     // "Impossible" check
     if (needed > 500 && dailyVelocity < 10) {
-      status = 'suspended'; // Math alone won't save you
+      status = 'suspended'; 
     }
 
     setMetrics({
@@ -78,7 +82,8 @@ export default function AccountHealthIntelligence() {
       ordersNeeded: needed > 0 ? needed : 0,
       daysToRecover: days,
       status,
-      riskScore: risk
+      riskScore: risk,
+      defectBuffer: Math.max(buffer, 0)
     });
 
   }, [totalOrders, defects, dailyVelocity]);
@@ -95,7 +100,7 @@ export default function AccountHealthIntelligence() {
               Account Health Intelligence
             </h1>
             <p className="text-slate-400 mt-2">
-              Order Defect Rate (ODR) Simulator & Recovery Planner.
+              Order Defect Rate (ODR) Simulator & Suspension Prevention.
             </p>
           </div>
           <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
@@ -116,7 +121,6 @@ export default function AccountHealthIntelligence() {
                <h3 className="text-white font-bold flex items-center gap-2 mb-4">
                   <BookOpen className="w-4 h-4 text-blue-400" /> 60-Day Data
                </h3>
-               
                <div className="space-y-4">
                   <div>
                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Total Orders (60 Days)</label>
@@ -126,9 +130,7 @@ export default function AccountHealthIntelligence() {
                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Defects (Neg + Claims)</label>
                      <input type="number" value={defects} onChange={e => setDefects(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-red-500 outline-none" />
                   </div>
-                  
                   <div className="h-px bg-slate-800 my-2"></div>
-
                   <div>
                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Avg Daily Sales (Now)</label>
                      <input type="number" value={dailyVelocity} onChange={e => setDailyVelocity(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-emerald-500 outline-none" />
@@ -154,7 +156,7 @@ export default function AccountHealthIntelligence() {
           {/* --- RIGHT: INTELLIGENCE PANEL (8 Cols) --- */}
           <div className="lg:col-span-8 space-y-6">
             
-            {/* 1. ODR Dashboard */}
+            {/* 1. ODR Gauge & Dashboard */}
             <div className={`rounded-xl border p-8 shadow-2xl relative overflow-hidden ${
                metrics.status === 'safe' ? 'bg-emerald-950/30 border-emerald-900' : 'bg-red-950/30 border-red-900'
             }`}>
@@ -169,7 +171,7 @@ export default function AccountHealthIntelligence() {
                      </p>
                   </div>
 
-                  {/* Gauge Visual */}
+                  {/* Visual Gauge */}
                   <div className="flex-1 w-full md:max-w-xs">
                      <div className="h-4 w-full bg-slate-950 rounded-full border border-slate-800 overflow-hidden relative">
                         <div 
@@ -179,61 +181,78 @@ export default function AccountHealthIntelligence() {
                            style={{ width: `${metrics.riskScore}%` }}
                         ></div>
                         {/* 1% Limit Marker */}
-                        <div className="absolute top-0 bottom-0 w-0.5 bg-white z-10" style={{ left: '60%' }} title="1% Threshold"></div>
+                        <div className="absolute top-0 bottom-0 w-0.5 bg-white z-10" style={{ left: '80%' }} title="1% Threshold"></div>
                      </div>
                      <div className="flex justify-between text-[10px] text-slate-500 mt-1 uppercase font-bold">
                         <span>Safe</span>
-                        <span className="text-white">1% Limit</span>
-                        <span>Suspension</span>
+                        <span className="text-white pr-8">1% Limit</span>
+                        <span>Risk</span>
                      </div>
                   </div>
                </div>
             </div>
 
-            {/* 2. Recovery Plan */}
-            {metrics.ordersNeeded > 0 ? (
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                     <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4" /> Dilution Target
-                     </h3>
-                     <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-4xl font-bold text-white">{metrics.ordersNeeded}</span>
-                        <span className="text-sm text-slate-400">orders</span>
-                     </div>
-                     <p className="text-xs text-slate-500">
-                        You need {metrics.ordersNeeded} perfect orders to dilute your bad rate down to 0.9%.
-                     </p>
-                  </div>
-
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                     <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
-                        <Clock className="w-4 h-4" /> Time to Safety
-                     </h3>
-                     {metrics.status === 'suspended' ? (
-                        <div className="text-red-400 font-bold text-sm">
-                           Math won't save you.
-                        </div>
-                     ) : (
-                        <div className="flex items-baseline gap-2 mb-2">
-                           <span className="text-4xl font-bold text-white">{metrics.daysToRecover}</span>
-                           <span className="text-sm text-slate-400">days</span>
-                        </div>
-                     )}
-                     <p className="text-xs text-slate-500">
-                        Based on your velocity of {dailyVelocity} sales/day.
-                     </p>
-                  </div>
-
+            {/* 2. Intelligent Action Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               
+               {/* NEW: The Buffer Card */}
+               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 relative overflow-hidden group hover:border-blue-500/50 transition-colors">
+                   <div className="absolute right-0 top-0 opacity-10 p-4">
+                       <LifeBuoy className="w-24 h-24 text-blue-500" />
+                   </div>
+                   <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
+                       <ShieldCheck className="w-4 h-4" /> The Safety Buffer
+                   </h3>
+                   
+                   {metrics.status === 'critical' || metrics.status === 'suspended' ? (
+                       <div className="text-red-400 font-bold text-sm">
+                           BUFFER BREACHED. <br/> You are currently over the limit.
+                       </div>
+                   ) : (
+                       <>
+                           <div className="text-4xl font-black text-white mb-2">{metrics.defectBuffer}</div>
+                           <p className="text-xs text-slate-400 leading-relaxed relative z-10">
+                               You can afford exactly <b>{metrics.defectBuffer} more defects</b> before your ODR hits 1% and triggers a review.
+                           </p>
+                       </>
+                   )}
                </div>
-            ) : (
-               <div className="bg-emerald-900/20 border border-emerald-900/50 rounded-xl p-8 text-center">
-                  <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-white">Your Account is Healthy</h3>
-                  <p className="text-slate-400 mt-2">No dilution orders needed. Keep up the good work!</p>
-               </div>
-            )}
+
+               {/* The Recovery Card */}
+               {metrics.ordersNeeded > 0 ? (
+                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                      <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
+                         <TrendingUp className="w-4 h-4" /> Recovery Plan
+                      </h3>
+                      <div className="space-y-4">
+                          <div>
+                              <div className="flex items-baseline gap-2">
+                                 <span className="text-4xl font-bold text-white">{metrics.ordersNeeded}</span>
+                                 <span className="text-sm text-slate-400">clean orders needed</span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 mt-1">
+                                
+                                To dilute ODR back to 0.9%.
+                              </p>
+                          </div>
+                          <div className="pt-4 border-t border-slate-800">
+                              <div className="flex items-center gap-2">
+                                 <Clock className="w-4 h-4 text-emerald-400" />
+                                 <span className="text-sm text-emerald-400 font-bold">{metrics.daysToRecover} Days</span>
+                              </div>
+                              <p className="text-[10px] text-slate-500">at current velocity.</p>
+                          </div>
+                      </div>
+                   </div>
+               ) : (
+                   <div className="bg-emerald-900/20 border border-emerald-900/50 rounded-xl p-6 flex flex-col justify-center items-center text-center">
+                      <CheckCircle2 className="w-12 h-12 text-emerald-500 mb-2" />
+                      <h3 className="text-sm font-bold text-white">All Systems Green</h3>
+                      <p className="text-xs text-slate-400 mt-1">Your ODR is healthy. No dilution needed.</p>
+                   </div>
+               )}
+
+            </div>
 
             {/* 3. Action Guide */}
             {metrics.status !== 'safe' && (
@@ -242,8 +261,8 @@ export default function AccountHealthIntelligence() {
                   
                   {metrics.status === 'suspended' ? (
                      <div className="space-y-2 text-sm text-red-200">
-                        <p>🔴 <b>Critical Situation:</b> You need too many orders ({metrics.ordersNeeded}) to recover naturally.</p>
-                        <p>👉 <b>Do not wait.</b> Prepare a "Plan of Action" (POA) for Amazon. Explain the root cause and how you fixed it.</p>
+                        <p className="flex items-center gap-2"><Ban className="w-4 h-4" /> <b>Critical Situation:</b> You need too many orders ({metrics.ordersNeeded}) to recover naturally.</p>
+                        <p className="pl-6">👉 <b>Do not wait.</b> Prepare a "Plan of Action" (POA) for Amazon. Explain the root cause and how you fixed it.</p>
                      </div>
                   ) : (
                      <div className="space-y-2 text-sm text-yellow-100">
