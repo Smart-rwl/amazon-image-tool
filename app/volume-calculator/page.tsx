@@ -8,9 +8,12 @@ import {
   CheckCircle2, 
   Scale, 
   DollarSign, 
-  BarChart3,
-  BookOpen,
-  Target
+  BarChart3, 
+  BookOpen, 
+  Target,
+  MoveHorizontal, // NEW
+  Crosshair,      // NEW
+  Zap             // NEW
 } from 'lucide-react';
 
 export default function SalesVelocitySimulator() {
@@ -23,14 +26,25 @@ export default function SalesVelocitySimulator() {
 
   // 2. Strategy
   const [targetPrice, setTargetPrice] = useState<number>(900); // Proposed price drop
+  
+  // 3. NEW: Market Sensitivity (Elasticity)
+  const [elasticity, setElasticity] = useState<number>(1.5); // 1.5 is standard e-commerce elasticity
 
-  // 3. Outputs
+  // 4. Outputs
   const [metrics, setMetrics] = useState({
     currentMargin: 0,
     newMargin: 0,
     profitGap: 0,
     requiredVolume: 0,
     volumeIncreasePct: 0,
+    
+    // NEW METRICS
+    predictedVolume: 0,
+    predictedIncreasePct: 0,
+    predictedTotalProfit: 0,
+    currentTotalProfit: 0,
+    netProfitChange: 0,
+    
     status: 'safe' as 'safe' | 'risky' | 'impossible'
   });
 
@@ -43,10 +57,7 @@ export default function SalesVelocitySimulator() {
     // B. New Economics
     const newMargin = targetPrice - unitCost;
     
-    // C. Break Even Volume Logic
-    // Total Profit must match or exceed current total profit
-    // NewMargin * NewVolume = TotalCurrProfit
-    
+    // C. Break Even Volume Logic (EXISTING)
     let reqVol = 0;
     let increasePct = 0;
     let status: 'safe' | 'risky' | 'impossible' = 'safe';
@@ -55,13 +66,32 @@ export default function SalesVelocitySimulator() {
       status = 'impossible'; // Losing money per unit
     } else {
       reqVol = Math.ceil(totalCurrProfit / newMargin);
-      increasePct = ((reqVol - currentVolume) / currentVolume) * 100;
+      increasePct = currentVolume > 0 ? ((reqVol - currentVolume) / currentVolume) * 100 : 0;
 
       // Risk Analysis
-      if (increasePct > 100) status = 'impossible'; // Doubling sales is very hard
-      else if (increasePct > 30) status = 'risky'; // 30% jump is significant
-      else status = 'safe'; // <30% lift is achievable with price drop
+      if (increasePct > 100) status = 'impossible'; 
+      else if (increasePct > 30) status = 'risky'; 
+      else status = 'safe'; 
     }
+
+    // D. NEW: Predictive Modeling (The "Likely" Outcome)
+    // Elasticity Formula: % Change Qty = Elasticity * % Change Price
+    const priceChangePct = currentPrice > 0 ? Math.abs((currentPrice - targetPrice) / currentPrice) : 0;
+    
+    // If price drops, volume goes UP (Positive impact)
+    // If price rises, volume goes DOWN (Negative impact)
+    const isPriceDrop = targetPrice < currentPrice;
+    const predictedLiftPct = priceChangePct * elasticity; // e.g. 10% drop * 1.5 elasticity = 15% lift
+    
+    let predVol = 0;
+    if (isPriceDrop) {
+        predVol = Math.ceil(currentVolume * (1 + predictedLiftPct));
+    } else {
+        predVol = Math.floor(currentVolume * (1 - predictedLiftPct));
+    }
+
+    const predProfit = predVol * newMargin;
+    const profitDelta = predProfit - totalCurrProfit;
 
     setMetrics({
       currentMargin: currMargin,
@@ -69,10 +99,16 @@ export default function SalesVelocitySimulator() {
       profitGap: currMargin - newMargin,
       requiredVolume: reqVol,
       volumeIncreasePct: increasePct,
+      // New
+      predictedVolume: predVol,
+      predictedIncreasePct: isPriceDrop ? predictedLiftPct * 100 : -predictedLiftPct * 100,
+      predictedTotalProfit: predProfit,
+      currentTotalProfit: totalCurrProfit,
+      netProfitChange: profitDelta,
       status
     });
 
-  }, [currentPrice, unitCost, currentVolume, targetPrice]);
+  }, [currentPrice, unitCost, currentVolume, targetPrice, elasticity]);
 
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
@@ -129,15 +165,35 @@ export default function SalesVelocitySimulator() {
             {/* 2. Strategy */}
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
                <h3 className="text-white font-bold flex items-center gap-2 mb-4">
-                  <TrendingDown className="w-4 h-4 text-emerald-400" /> Proposed Price Drop
+                  <TrendingDown className="w-4 h-4 text-emerald-400" /> Proposed Strategy
                </h3>
                
-               <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">New Target Price</label>
-                  <input type="number" value={targetPrice} onChange={e => setTargetPrice(Number(e.target.value))} className="w-full bg-slate-950 border border-emerald-500/50 rounded p-3 text-emerald-400 font-bold text-lg focus:border-emerald-500 outline-none" />
-                  <p className="text-[10px] text-slate-500 mt-2">
-                     Drop of {currentPrice - targetPrice > 0 ? fmt(currentPrice - targetPrice) : '0'} per unit.
-                  </p>
+               <div className="space-y-6">
+                   <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">New Target Price</label>
+                     <input type="number" value={targetPrice} onChange={e => setTargetPrice(Number(e.target.value))} className="w-full bg-slate-950 border border-emerald-500/50 rounded p-3 text-emerald-400 font-bold text-lg focus:border-emerald-500 outline-none" />
+                     <p className="text-[10px] text-slate-500 mt-2">
+                        {targetPrice < currentPrice ? `Price Drop of ${fmt(currentPrice - targetPrice)}` : `Price Hike of ${fmt(targetPrice - currentPrice)}`}
+                     </p>
+                   </div>
+
+                   {/* NEW: Elasticity Slider */}
+                   <div>
+                       <div className="flex justify-between mb-2">
+                          <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                              <MoveHorizontal className="w-3 h-3" /> Market Elasticity
+                          </label>
+                          <span className="text-white font-bold">{elasticity.toFixed(1)}x</span>
+                       </div>
+                       <input 
+                          type="range" min="0.5" max="3.0" step="0.1" 
+                          value={elasticity} onChange={e => setElasticity(Number(e.target.value))} 
+                          className="w-full accent-blue-500" 
+                       />
+                       <p className="text-[10px] text-slate-500 mt-2">
+                          How sensitive are buyers? (1.0 = Normal, 2.0 = Very Sensitive to price changes)
+                       </p>
+                   </div>
                </div>
             </div>
 
@@ -146,18 +202,18 @@ export default function SalesVelocitySimulator() {
           {/* --- RIGHT: INTELLIGENCE PANEL (8 Cols) --- */}
           <div className="lg:col-span-8 space-y-6">
             
-            {/* 1. Main KPI Dashboard */}
+            {/* 1. Break Even Analysis (EXISTING) */}
             <div className={`rounded-xl border p-8 shadow-2xl relative overflow-hidden ${
                metrics.status === 'impossible' ? 'bg-red-950/30 border-red-900' : 'bg-slate-900 border-slate-800'
             }`}>
                <div className="flex flex-col md:flex-row gap-8 items-center justify-between relative z-10">
                   <div className="space-y-2">
-                     <span className="text-sm font-bold uppercase tracking-wider text-slate-300">Required Volume Target</span>
+                     <span className="text-sm font-bold uppercase tracking-wider text-slate-300">Required Break-Even Volume</span>
                      <div className="text-6xl font-extrabold text-white">
                         {metrics.requiredVolume} <span className="text-2xl font-medium text-slate-400">units</span>
                      </div>
                      <p className="text-sm text-slate-400">
-                        To maintain current total profit.
+                        To maintain current total profit of {fmt(metrics.currentTotalProfit)}.
                      </p>
                   </div>
 
@@ -165,13 +221,46 @@ export default function SalesVelocitySimulator() {
                   <div className="bg-slate-950/50 p-6 rounded-xl border border-white/10 text-center min-w-[200px]">
                      <p className="text-xs text-slate-400 uppercase font-bold mb-2">Sales Lift Needed</p>
                      <div className={`text-3xl font-bold ${metrics.volumeIncreasePct > 50 ? 'text-red-400' : 'text-emerald-400'}`}>
-                        +{metrics.volumeIncreasePct.toFixed(0)}%
+                        {metrics.volumeIncreasePct > 0 ? '+' : ''}{metrics.volumeIncreasePct.toFixed(0)}%
                      </div>
                   </div>
                </div>
             </div>
 
-            {/* 2. Profit Analysis */}
+            {/* 2. NEW: Predictive Forecast Card */}
+            <div className="bg-indigo-900/10 border border-indigo-900/50 rounded-xl p-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Crosshair className="w-24 h-24 text-indigo-500" />
+                </div>
+                
+                <h3 className="text-xs font-bold uppercase text-indigo-400 mb-6 flex items-center gap-2">
+                    <Zap className="w-4 h-4" /> Predictive Forecast
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                    <div>
+                        <span className="text-xs text-slate-400 block mb-1">Predicted Volume</span>
+                        <span className="text-2xl font-bold text-white">{metrics.predictedVolume} units</span>
+                        <p className="text-[10px] text-slate-500 mt-1">Based on {elasticity}x elasticity</p>
+                    </div>
+                    <div>
+                        <span className="text-xs text-slate-400 block mb-1">Predicted Total Profit</span>
+                        <span className={`text-2xl font-bold ${metrics.netProfitChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {fmt(metrics.predictedTotalProfit)}
+                        </span>
+                    </div>
+                    <div>
+                        <span className="text-xs text-slate-400 block mb-1">Net Outcome</span>
+                        <div className={`px-3 py-1 rounded border inline-block text-sm font-bold ${
+                            metrics.netProfitChange >= 0 ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-red-500/20 border-red-500 text-red-400'
+                        }`}>
+                            {metrics.netProfitChange >= 0 ? '+' : ''}{fmt(metrics.netProfitChange)} / mo
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Profit Analysis (EXISTING + ENHANCED) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                
                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
@@ -198,21 +287,22 @@ export default function SalesVelocitySimulator() {
                   <h3 className="text-xs font-bold uppercase text-slate-500 mb-4 flex items-center gap-2">
                      <BarChart3 className="w-4 h-4" /> Feasibility Check
                   </h3>
-                  {metrics.status === 'impossible' ? (
-                     <div className="text-red-400 text-sm">
-                        <p className="font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4"/> Critical Warning</p>
-                        <p className="mt-2 opacity-80">You are selling at a loss or need an impossible sales increase. Abort strategy.</p>
-                     </div>
-                  ) : metrics.status === 'risky' ? (
-                     <div className="text-yellow-400 text-sm">
-                        <p className="font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4"/> High Risk</p>
-                        <p className="mt-2 opacity-80">Requiring a {metrics.volumeIncreasePct.toFixed(0)}% sales boost is aggressive. Do you have ads budget to support this?</p>
-                     </div>
+                  {metrics.predictedVolume >= metrics.requiredVolume ? (
+                      <div className="text-emerald-400 text-sm">
+                         <p className="font-bold flex items-center gap-2"><CheckCircle2 className="w-4 h-4"/> Green Light</p>
+                         <p className="mt-2 opacity-80">
+                             Market demand (Predicted +{metrics.predictedIncreasePct.toFixed(0)}%) exceeds your Break-Even requirement (+{metrics.volumeIncreasePct.toFixed(0)}%).
+                             <br/><b>This price drop is profitable.</b>
+                         </p>
+                      </div>
                   ) : (
-                     <div className="text-emerald-400 text-sm">
-                        <p className="font-bold flex items-center gap-2"><CheckCircle2 className="w-4 h-4"/> Strategy Viable</p>
-                        <p className="mt-2 opacity-80">A {metrics.volumeIncreasePct.toFixed(0)}% sales lift is realistic for this price drop. Go for it.</p>
-                     </div>
+                      <div className="text-red-400 text-sm">
+                         <p className="font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4"/> Red Light</p>
+                         <p className="mt-2 opacity-80">
+                             You need +{metrics.volumeIncreasePct.toFixed(0)}% sales, but the market will likely only give you +{metrics.predictedIncreasePct.toFixed(0)}%.
+                             <br/><b>You will likely lose money.</b>
+                         </p>
+                      </div>
                   )}
                </div>
 
@@ -220,55 +310,6 @@ export default function SalesVelocitySimulator() {
 
           </div>
 
-        </div>
-
-        {/* --- GUIDE SECTION --- */}
-        <div className="border-t border-slate-800 pt-10">
-           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-indigo-500" />
-              Price Elasticity Guide
-           </h2>
-           
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                 <div className="bg-blue-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
-                    <TrendingUp className="w-5 h-5 text-blue-400" />
-                 </div>
-                 <h3 className="font-bold text-white mb-2">The Volume Trap</h3>
-                 <p className="text-sm text-slate-400 leading-relaxed">
-                    Most sellers think "lower price = more money". 
-                    <br/>
-                    <b>Reality:</b> A 10% price cut often requires a 50% increase in sales volume just to make the <i>same</i> total profit. Use this tool to see the truth.
-                 </p>
-              </div>
-
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                 <div className="bg-emerald-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
-                    <Target className="w-5 h-5 text-emerald-400" />
-                 </div>
-                 <h3 className="font-bold text-white mb-2">When to Drop Price?</h3>
-                 <p className="text-sm text-slate-400 leading-relaxed">
-                    1. To clear dead stock (Liquidation).
-                    <br/>
-                    2. To boost BSR (Best Seller Rank) temporarily.
-                    <br/>
-                    3. To steal the Buy Box from a competitor.
-                 </p>
-              </div>
-
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                 <div className="bg-red-500/10 w-10 h-10 rounded-lg flex items-center justify-center mb-4">
-                    <AlertTriangle className="w-5 h-5 text-red-400" />
-                 </div>
-                 <h3 className="font-bold text-white mb-2">Impossible Scenarios</h3>
-                 <p className="text-sm text-slate-400 leading-relaxed">
-                    If the tool says you need <b>+300% sales</b>, stop. 
-                    Unless you are spending heavily on ads (which costs even more money), organic sales rarely triple just because of a small discount.
-                 </p>
-              </div>
-
-           </div>
         </div>
 
       </div>
