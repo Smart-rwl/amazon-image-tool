@@ -357,7 +357,9 @@ export default function CompetitorWarRoom() {
            </div>
         </div>
 
+        </div>
+
       </div>
     </div>
   );
-&rbrace;
+}
