@@ -120,7 +120,7 @@ export default function CompetitorWarRoom() {
 
   }, [myPrice, myReviews, myRating, compPrice, compReviews, compRating, myDailySales, myLandedCost]);
 
-  const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-6 md:p-12">
