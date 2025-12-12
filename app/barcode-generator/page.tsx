@@ -2,10 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Barcode from 'react-barcode';
-import QRCode from 'react-qr-code'; // NEW
-import html2canvas from 'html2canvas'; // NEW
-import jsPDF from 'jspdf'; // NEW
-import { Scanner } from '@yudiel/react-qr-scanner'; // NEW
+import QRCode from 'react-qr-code';
+import { Scanner } from '@yudiel/react-qr-scanner';
 import { 
   Printer, 
   Download, 
@@ -24,6 +22,10 @@ import {
   Factory
 } from 'lucide-react';
 
+// FIX: We will import html2canvas and jsPDF dynamically inside the function
+// import html2canvas from 'html2canvas'; 
+// import jsPDF from 'jspdf';
+
 export default function AdvancedBarcodeGenerator() {
   // --- STATE: DATA ---
   const [value, setValue] = useState('X001234567'); 
@@ -32,12 +34,11 @@ export default function AdvancedBarcodeGenerator() {
   const [expiryDate, setExpiryDate] = useState('');
   const [supplierCode, setSupplierCode] = useState('FAC-A1');
 
-  // NEW: Strategic Data
-  const [batchNumber, setBatchNumber] = useState('BATCH-2024-Q1'); // NEW
-  const [manufactureDate, setManufactureDate] = useState('2024-01-15'); // NEW
-  const [countryOfOrigin, setCountryOfOrigin] = useState('CN'); // NEW
-  const [weight, setWeight] = useState('250'); // in grams // NEW
-  const [dimensions, setDimensions] = useState({ length: '15', width: '10', height: '5' }); // in cm // NEW
+  const [batchNumber, setBatchNumber] = useState('BATCH-2024-Q1');
+  const [manufactureDate, setManufactureDate] = useState('2024-01-15');
+  const [countryOfOrigin, setCountryOfOrigin] = useState('CN');
+  const [weight, setWeight] = useState('250');
+  const [dimensions, setDimensions] = useState({ length: '15', width: '10', height: '5' });
 
   // --- STATE: CONFIG ---
   const [format, setFormat] = useState('CODE128');
@@ -51,40 +52,34 @@ export default function AdvancedBarcodeGenerator() {
   const [layoutMode, setLayoutMode] = useState<'single' | 'sheet'>('sheet');
   const [pageSize, setPageSize] = useState<'a4' | 'a5' | 'letter'>('a4');
   const [gridConfig, setGridConfig] = useState({ cols: 3, rows: 10 });
-  const [marginTop, setMarginTop] = useState(10); // mm
-  const [marginLeft, setMarginLeft] = useState(5);  // mm
-  const [gapX, setGapX] = useState(5); // mm
+  const [marginTop, setMarginTop] = useState(10);
+  const [marginLeft, setMarginLeft] = useState(5);
+  const [gapX, setGapX] = useState(5);
 
-  // NEW: QR Code & Batch Printing State
-  const [useQRCode, setUseQRCode] = useState(false); // NEW
-  const [qrData, setQrData] = useState('https://www.amazon.com/dp/B08N5WRWNW'); // NEW
-  const [batchSKUs, setBatchSKUs] = useState([ // NEW
+  const [useQRCode, setUseQRCode] = useState(false);
+  const [qrData, setQrData] = useState('https://www.amazon.com/dp/B08N5WRWNW');
+  const [batchSKUs, setBatchSKUs] = useState([
     { id: 1, value: 'X001234567', title: 'Wireless Headphones', quantity: 10 },
     { id: 2, value: 'X002345678', title: 'USB-C Cable', quantity: 20 }
   ]);
 
-  // NEW: Template State
-  const [template, setTemplate] = useState('standard'); // NEW
-  const labelTemplates = { // NEW
+  const [template, setTemplate] = useState('standard');
+  const labelTemplates = {
     standard: { name: 'Standard FBA', settings: { format: 'CODE128', width: 1.5, height: 50, fontSize: 11 } },
     small: { name: 'Small Item', settings: { format: 'CODE128', width: 1, height: 30, fontSize: 9 } },
     clothing: { name: 'Clothing Tag', settings: { format: 'CODE128', width: 1.2, height: 40, fontSize: 10 } },
   };
 
-  // NEW: Compliance & Verification State
-  const [amazonCategory, setAmazonCategory] = useState('electronics'); // NEW
-  const [categoryWarnings, setCategoryWarnings] = useState<string[]>([]); // NEW
-  const [complianceIssues, setComplianceIssues] = useState<string[]>([]); // NEW
-  const [showScanner, setShowScanner] = useState(false); // NEW
-  const [scanResult, setScanResult] = useState(''); // NEW
+  const [amazonCategory, setAmazonCategory] = useState('electronics');
+  const [categoryWarnings, setCategoryWarnings] = useState<string[]>([]);
+  const [complianceIssues, setComplianceIssues] = useState<string[]>([]);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanResult, setScanResult] = useState('');
 
   const barcodeRef = useRef<HTMLDivElement>(null);
 
-  // --- LOGIC: SAFETY CHECKS ---
   const isAsin = value.startsWith('B0');
 
-  // --- LOGIC: EFFECTS ---
-  // NEW: Effect for Category Warnings
   useEffect(() => {
     const issues = [];
     if (amazonCategory === 'supplements' && !expiryDate) {
@@ -98,7 +93,6 @@ export default function AdvancedBarcodeGenerator() {
 
   // --- ACTIONS ---
 
-  // 1. Next-Gen Print Logic (Updated for Batch SKUs)
   const handlePrint = () => {
     const sizeMap = { a4: '210mm 297mm', a5: '148mm 210mm', letter: '8.5in 11in' };
     const win = window.open('', '', 'height=900,width=800');
@@ -122,10 +116,8 @@ export default function AdvancedBarcodeGenerator() {
     win.document.write('</head><body><div class="print-container"><div class="label-grid">');
 
     let labelHtml = '';
-    // Loop through each SKU in the batch
     for (const sku of batchSKUs) {
       if (sku.quantity <= 0) continue;
-      // Generate the required number of labels for this SKU
       for (let i = 0; i < sku.quantity; i++) {
         labelHtml += `
           <div class="label-item">
@@ -142,7 +134,6 @@ export default function AdvancedBarcodeGenerator() {
     win.document.write('</div></div></body></html>');
     win.document.close();
 
-    // Use JsBarcode to render the barcodes in the new window after it's loaded
     win.onload = () => {
       // @ts-ignore
       JsBarcode(".barcode").init();
@@ -150,7 +141,6 @@ export default function AdvancedBarcodeGenerator() {
     };
   };
 
-  // 2. Download SVG (Original)
   const handleDownloadSVG = () => {
     const svg = barcodeRef.current?.querySelector('svg');
     if (svg) {
@@ -166,32 +156,39 @@ export default function AdvancedBarcodeGenerator() {
     }
   };
 
-  // NEW: 3. Download PNG
+  // FIX: Use dynamic import for html2canvas to avoid server-side errors
   const handleDownloadPNG = async () => {
     const element = barcodeRef.current;
-    if (element) {
-      const canvas = await html2canvas(element);
-      const dataURL = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = `${value}.png`;
-      link.href = dataURL;
-      link.click();
-    }
+    if (!element) return;
+
+    // Dynamically import html2canvas
+    const html2canvas = (await import('html2canvas')).default;
+    const canvas = await html2canvas(element);
+    const dataURL = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `${value}.png`;
+    link.href = dataURL;
+    link.click();
   };
 
-  // NEW: 4. Download PDF
+  // FIX: Use dynamic import for both html2canvas and jsPDF
   const handleDownloadPDF = async () => {
     const element = barcodeRef.current;
-    if (element) {
-      const canvas = await html2canvas(element);
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF();
-      pdf.addImage(imgData, 'PNG', 10, 10);
-      pdf.save(`${value}.pdf`);
-    }
+    if (!element) return;
+
+    // Dynamically import both libraries
+    const [html2canvas, jsPDF] = await Promise.all([
+      import('html2canvas').then(mod => mod.default),
+      import('jspdf').then(mod => mod.jsPDF)
+    ]);
+
+    const canvas = await html2canvas(element);
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF();
+    pdf.addImage(imgData, 'PNG', 10, 10);
+    pdf.save(`${value}.pdf`);
   };
 
-  // NEW: 5. Compliance Checker
   const checkCompliance = () => {
     const issues = [];
     if (!value.startsWith('X0')) issues.push('FNSKU should start with "X0" to avoid commingling.');
@@ -268,14 +265,12 @@ export default function AdvancedBarcodeGenerator() {
                      <input type="text" value={supplierCode} onChange={e => setSupplierCode(e.target.value)} placeholder="e.g. FAC-A1" className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm focus:border-indigo-500 focus:outline-none" />
                   </div>
 
-                  {/* NEW: Batch/Lot & Country of Origin */}
                   <div className="grid grid-cols-2 gap-4">
                       <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Batch/Lot</label><input type="text" value={batchNumber} onChange={e => setBatchNumber(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" /></div>
                       <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">MFG Date</label><input type="date" value={manufactureDate} onChange={e => setManufactureDate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" /></div>
                   </div>
                   <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Country of Origin</label><select value={countryOfOrigin} onChange={e => setCountryOfOrigin(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm"><option value="CN">China</option><option value="US">United States</option><option value="VN">Vietnam</option></select></div>
                   
-                  {/* NEW: Amazon Category */}
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Amazon Category</label>
                     <select value={amazonCategory} onChange={e => setAmazonCategory(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm">
@@ -284,11 +279,9 @@ export default function AdvancedBarcodeGenerator() {
                     {categoryWarnings.length > 0 && (<div className="mt-2 p-2 bg-amber-900/20 border border-amber-500/30 rounded text-xs text-amber-400">{categoryWarnings.map((w,i)=> <div key={i} className="flex items-start gap-2"><AlertOctagon className="w-3 h-3 mt-0.5" /><span>{w}</span></div>)}</div>)}
                   </div>
 
-                  {/* NEW: QR Code Toggle */}
                   <div className="flex items-center gap-2"><input type="checkbox" id="useQRCode" checked={useQRCode} onChange={e => setUseQRCode(e.target.checked)} className="rounded" /><label htmlFor="useQRCode" className="text-sm text-slate-300">Use QR Code</label></div>
                   {useQRCode && (<div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">QR Code Data</label><textarea value={qrData} onChange={e => setQrData(e.target.value)} placeholder="URL or text" className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm h-20" /></div>)}
                   
-                  {/* NEW: Compliance Checker */}
                   <div className="border-t border-slate-800 pt-4">
                     <button onClick={checkCompliance} className="w-full py-2 bg-blue-600/20 border border-blue-500/30 rounded text-sm text-blue-400 hover:bg-blue-600/30 transition">Check Amazon Compliance</button>
                     {complianceIssues.length > 0 && (<div className="mt-2 p-2 bg-red-900/20 border border-red-500/30 rounded text-xs text-red-400"><div className="font-bold mb-1">Issues:</div>{complianceIssues.map((issue,i)=> <div key={i} className="flex items-start gap-2 mt-1"><AlertOctagon className="w-3 h-3 mt-0.5" /><span>{issue}</span></div>)}</div>)}
@@ -304,21 +297,16 @@ export default function AdvancedBarcodeGenerator() {
                </h3>
                
                <div className="space-y-4">
-                  {/* Paper Size */}
                   <div><label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Paper Size</label><div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">{['a4', 'a5', 'letter'].map((size) => (<button key={size} onClick={() => setPageSize(size as any)} className={`flex-1 py-1.5 text-xs font-medium rounded uppercase ${pageSize === size ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>{size}</button>))}</div></div>
 
-                  {/* NEW: Label Templates */}
                   <div><label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Label Template</label><div className="grid grid-cols-2 gap-2">{Object.entries(labelTemplates).map(([key, tmpl]) => (<button key={key} onClick={() => { setTemplate(key); setFormat(tmpl.settings.format as any); setWidth(tmpl.settings.width); setHeight(tmpl.settings.height); setFontSize(tmpl.settings.fontSize); }} className={`py-2 text-xs font-medium rounded border ${template === key ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300' : 'bg-slate-950 border-slate-700 text-slate-400'}`}>{tmpl.name}</button>))}</div></div>
 
-                  {/* Grid Presets */}
                   <div><label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Grid Layout</label><div className="flex gap-2"><button onClick={() => { setGridConfig({ cols: 3, rows: 10 }); setQuantity(30); }} className={`flex-1 py-2 text-xs font-medium rounded border ${gridConfig.cols === 3 ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300' : 'bg-slate-950 border-slate-700 text-slate-400'}`}>3 x 10 (30-up)</button><button onClick={() => { setGridConfig({ cols: 4, rows: 5 }); setQuantity(20); }} className={`flex-1 py-2 text-xs font-medium rounded border ${gridConfig.cols === 4 ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300' : 'bg-slate-950 border-slate-700 text-slate-400'}`}>4 x 5 (20-up)</button></div></div>
 
-                  {/* Precision Margins */}
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800"><div><label className="text-[10px] text-slate-500 block mb-1">Top (mm)</label><input type="number" value={marginTop} onChange={e => setMarginTop(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-white text-center text-sm" /></div><div><label className="text-[10px] text-slate-500 block mb-1">Left (mm)</label><input type="number" value={marginLeft} onChange={e => setMarginLeft(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-white text-center text-sm" /></div><div><label className="text-[10px] text-slate-500 block mb-1">Gap X (mm)</label><input type="number" value={gapX} onChange={e => setGapX(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-white text-center text-sm" /></div></div>
                </div>
             </div>
 
-            {/* NEW: Batch Printing */}
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
               <h3 className="text-white font-bold flex items-center gap-2 mb-4"><Layers className="w-4 h-4 text-purple-400" /> Batch Printing</h3>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
@@ -327,11 +315,20 @@ export default function AdvancedBarcodeGenerator() {
               <button onClick={() => setBatchSKUs([...batchSKUs, { id: Date.now(), value: '', title: '', quantity: 0 }])} className="mt-2 w-full py-1 bg-purple-600/20 border border-purple-500/30 rounded text-xs text-purple-400 hover:bg-purple-600/30 transition">Add SKU</button>
             </div>
 
-            {/* NEW: Label Verification */}
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
               <h3 className="text-white font-bold flex items-center gap-2 mb-4"><CheckCircle2 className="w-4 h-4 text-green-400" /> Label Verification</h3>
               <button onClick={() => setShowScanner(!showScanner)} className="w-full py-2 bg-green-600/20 border border-green-500/30 rounded text-sm text-green-400 hover:bg-green-600/30 transition">{showScanner ? 'Hide Scanner' : 'Scan Barcode to Verify'}</button>
-              {showScanner && (<div className="mt-4"><Scanner onScan={(result) => { setScanResult(result[0].rawValue); setShowScanner(false); }} components={{ audio: false, finder: false }} /></div>)}
+              {showScanner && (
+                <div className="mt-4">
+                  {/* FIX: Removed the 'components' prop to resolve the 'audio' error */}
+                  <Scanner 
+                    onScan={(result) => { 
+                      setScanResult(result[0].rawValue); 
+                      setShowScanner(false); 
+                    }} 
+                  />
+                </div>
+              )}
               {scanResult && (<div className="mt-4 p-2 bg-slate-950 rounded text-sm"><div className="text-slate-400">Scanned Value:</div><div className="text-white font-mono">{scanResult}</div><div className="mt-2 text-xs">{scanResult === value ? (<span className="text-green-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Match! Barcode is correct.</span>) : (<span className="text-red-400 flex items-center gap-1"><AlertOctagon className="w-3 h-3" /> Mismatch! Check your label.</span>)}</div></div>)}
             </div>
 
