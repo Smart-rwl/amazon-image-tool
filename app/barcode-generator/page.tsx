@@ -171,22 +171,41 @@ export default function AdvancedBarcodeGenerator() {
     link.click();
   };
 
-  // FIX: Use dynamic import for both html2canvas and jsPDF
+    // FIX: Use a more robust dynamic import for jsPDF
   const handleDownloadPDF = async () => {
     const element = barcodeRef.current;
     if (!element) return;
 
-    // Dynamically import both libraries
-    const [html2canvas, jsPDF] = await Promise.all([
-      import('html2canvas').then(mod => mod.default),
-      import('jspdf').then(mod => mod.jsPDF)
-    ]);
+    try {
+      // Dynamically import both libraries
+      const html2canvas = (await import('html2canvas')).default;
+      // Use destructuring to get the jsPDF constructor
+      const { jsPDF } = await import('jspdf');
 
-    const canvas = await html2canvas(element);
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF();
-    pdf.addImage(imgData, 'PNG', 10, 10);
-    pdf.save(`${value}.pdf`);
+      const canvas = await html2canvas(element);
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Create a new jsPDF instance
+      const pdf = new jsPDF({
+        orientation: 'landscape', // Optional: good for wide barcodes
+        unit: 'px', // Use pixels for consistency with canvas
+        format: [canvas.width, canvas.height] // Optional: match PDF size to canvas
+      });
+
+      // --- DEBUGGING STEP ---
+      // Check your browser's developer console (F12).
+      // It should log the jsPDF object and show that it has the 'addImage' function.
+      console.log('jsPDF object:', pdf); 
+      // --------------------
+
+      // Add the image to the PDF
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save(`${value}.pdf`);
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Could not generate PDF. See console for details.");
+    }
   };
 
   const checkCompliance = () => {
