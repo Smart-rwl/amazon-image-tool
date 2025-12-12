@@ -14,9 +14,11 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "6.16.2",
+    "@yudiel/react-qr-scanner": "^2.4.1",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.0",
     "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
     "jszip": "^3.10.1",
@@ -27,7 +29,8 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.2.1",
     "react-barcode": "^1.6.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "react-qr-code": "^2.0.18"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
