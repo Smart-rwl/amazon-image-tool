@@ -12,9 +12,11 @@
     "prisma:seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@esbuild-kit/core-utils": "^3.3.2",
+    "@esbuild-kit/esm-loader": "^2.6.5",
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "6.16.2",
-    "@supabase/supabase-js": "^2.87.1",
+    "@supabase/supabase-js": "^2.87.3",
     "@yudiel/react-qr-scanner": "^2.4.1",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.0",

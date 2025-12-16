@@ -1,55 +1,56 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase'; // Imports the connection we made in Step 1
+import { supabase } from '@/lib/supabase'; // Ensure this path matches where you created the supabase.ts file
 
-export default function LoginPage() {
-  const router = useRouter();
-  
-  // State variables to hold the user's input
+export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevents the page from refreshing
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault(); // Stop the form from refreshing the page
     setLoading(true);
-    setErrorMsg(null);
+    setMessage(null);
 
-    // The actual Supabase Login Logic
-    const { error } = await supabase.auth.signInWithPassword({
+    // --- SUPABASE SIGNUP LOGIC ---
+    const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
     });
 
     if (error) {
-      setErrorMsg(error.message); // Show error if password is wrong
-      setLoading(false);
+      setMessage({ type: 'error', text: error.message });
     } else {
-      // Success! Redirect to dashboard or home
-      router.push('/'); 
-      router.refresh();
+      setMessage({ 
+        type: 'success', 
+        text: 'Success! Please check your email to verify your account.' 
+      });
     }
+    setLoading(false);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 border border-gray-100">
         
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Sign In</h2>
-        
-        {/* Error Message Alert */}
-        {errorMsg && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
-            {errorMsg}
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Create Account</h2>
+
+        {/* Message Alert (Success or Error) */}
+        {message && (
+          <div className={`mb-4 p-3 text-sm rounded-lg border ${
+            message.type === 'error' 
+              ? 'bg-red-50 text-red-600 border-red-100' 
+              : 'bg-green-50 text-green-700 border-green-100'
+          }`}>
+            {message.text}
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleSignup} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
             <input
               type="email"
               required
@@ -77,12 +78,12 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
-        
+
         <p className="mt-4 text-center text-sm text-gray-500">
-          Don't have an account? <a href="/signup" className="text-blue-600 hover:underline">Sign up</a>
+          Already have an account? <a href="/login" className="text-blue-600 hover:underline">Log in</a>
         </p>
       </div>
     </div>
