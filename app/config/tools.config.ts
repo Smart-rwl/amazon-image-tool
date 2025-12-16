@@ -1,6 +1,6 @@
 // app/config/tools.config.ts
 
-export type ToolGroupId = 'calculators' | 'finance' | 'listing' | 'operations';
+export type ToolGroupId = 'calculators' | 'finance' | 'listing' | 'operations' | 'assets';
 
 export interface ToolItem {
   slug: string;     // folder name under /app
@@ -14,6 +14,7 @@ export const TOOL_GROUPS: Record<ToolGroupId, string> = {
   finance: 'Finance',
   listing: 'Listing Tools',
   operations: 'Operations',
+  assets: 'Assets',
 };
 
 export const TOOLS: ToolItem[] = [
@@ -51,4 +52,7 @@ export const TOOLS: ToolItem[] = [
   { slug: 'qr-generator',      label: 'QR Generator',           desc: 'QR codes for inserts',   group: 'operations' },
   { slug: 'cbm-calculator',    label: 'CBM Calculator',         desc: 'Carton CBM & freight',   group: 'operations' },
   { slug: 'barcode-generator', label: 'Barcode Generator',      desc: 'FNSKU / UPC labels',     group: 'operations' },
+
+  // --- Assets ---
+  { slug: 'image-compressor',  label: 'Image Compressor',       desc: 'Optimize images online', group: 'assets' },
 ];
