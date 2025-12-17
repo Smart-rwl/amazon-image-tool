@@ -65,7 +65,8 @@ export default function SettingsPage() {
       
       // Create a unique file path: user_id/timestamp.ext
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      // This puts the file inside a folder matching the User ID
+const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       // A. Upload to Supabase Storage 'avatars' bucket
