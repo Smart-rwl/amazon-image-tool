@@ -9,7 +9,8 @@ import {
   LayoutDashboard, Crown, Calculator, Package, TrendingUp, 
   ShoppingCart, AlertTriangle, Download, ArrowUpRight, 
   HelpCircle, MessageSquare, Sparkles, Globe, 
-  ArrowRight, Activity, Zap, ExternalLink, X
+  ArrowRight, Activity, Zap, ExternalLink, X,
+  LogOut, Star, User as UserIcon, Settings, Bell, ChevronDown, Heart
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
@@ -22,8 +23,12 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [mode, setMode] = useState<DashboardMode>('standard');
   const [loading, setLoading] = useState(true);
-  const [showDemo, setShowDemo] = useState(true); // Default to true for new users
+  const [showDemo, setShowDemo] = useState(true); 
   const [showNewToolAlert, setShowNewToolAlert] = useState(true);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false); // State for User Dropdown
+
+  // Suggestion: Simple Favorites State
+  const [favorites, setFavorites] = useState<string[]>(['Profit Simulator']);
 
   const router = useRouter();
 
@@ -37,10 +42,31 @@ export default function DashboardPage() {
     getUser();
   }, [router]);
 
+  // Logout Function
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+
+  // Suggestion: Time-based greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const toggleFavorite = (toolName: string) => {
+    if (favorites.includes(toolName)) {
+      setFavorites(favorites.filter(f => f !== toolName));
+    } else {
+      setFavorites([...favorites, toolName]);
+    }
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500 bg-gray-50">Loading Smart Seller...</div>;
 
   // --- DEMO DATA GENERATOR ---
-  // This ensures the dashboard never looks "broken" for a new user
   const premiumData = {
     revenue: showDemo ? 1245000 : 0,
     units: showDemo ? 450 : 0,
@@ -87,6 +113,45 @@ export default function DashboardPage() {
               <><Zap className="w-3 h-3" /> Back to Standard</>
             )}
           </button>
+
+          {/* Suggestion: Notification Bell */}
+          <button className={`p-2 rounded-full transition-colors relative ${mode === 'premium' ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-gray-100 text-gray-500'}`}>
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+          </button>
+
+          {/* User Profile Dropdown (New Feature) */}
+          <div className="relative">
+            <button 
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className={`flex items-center gap-2 p-1 pr-3 rounded-full border transition-all ${mode === 'premium' ? 'border-slate-700 bg-slate-800 text-slate-200' : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'}`}
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs">
+                {user?.email?.charAt(0).toUpperCase()}
+              </div>
+              <ChevronDown className="w-3 h-3" />
+            </button>
+
+            {isUserMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setIsUserMenuOpen(false)}></div>
+                <div className="absolute right-0 top-12 w-56 rounded-xl shadow-2xl border z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-200 bg-white border-gray-100">
+                  <div className="p-4 border-b border-gray-100 bg-gray-50">
+                    <p className="text-xs text-gray-500 font-medium">Signed in as</p>
+                    <p className="text-sm font-bold text-gray-900 truncate">{user?.email}</p>
+                  </div>
+                  <div className="p-2">
+                    <Link href="/settings" className="flex items-center gap-3 p-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg">
+                      <Settings className="w-4 h-4" /> Settings
+                    </Link>
+                    <button onClick={handleLogout} className="w-full flex items-center gap-3 p-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <LogOut className="w-4 h-4" /> Sign Out
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -96,8 +161,8 @@ export default function DashboardPage() {
         {/* 1. WELCOME & DEMO TOGGLE */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className={`text-2xl font-bold ${mode === 'premium' ? 'text-white' : 'text-gray-900'}`}>
-              Hello, {user?.email?.split('@')[0]}
+            <h2 className={`text-2xl font-bold flex items-center gap-2 ${mode === 'premium' ? 'text-white' : 'text-gray-900'}`}>
+              {getGreeting()}, {user?.email?.split('@')[0]}
             </h2>
             <p className={`text-sm ${mode === 'premium' ? 'text-slate-400' : 'text-gray-500'}`}>
               Here is what's happening in your store today.
@@ -118,12 +183,12 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 2. DEMO MODE BANNER (Shown if data is empty/demo) */}
+        {/* 2. DEMO MODE BANNER */}
         {showDemo && (
           <div className={`p-4 rounded-xl border flex flex-col md:flex-row items-center justify-between gap-4 ${mode === 'premium' ? 'bg-slate-900 border-slate-700' : 'bg-white border-gray-200 shadow-sm'}`}>
             <div className="flex items-center gap-4">
                <div className={`p-3 rounded-full ${mode === 'premium' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-yellow-100 text-yellow-600'}`}>
-                  <AlertTriangle className="w-5 h-5" />
+                 <AlertTriangle className="w-5 h-5" />
                </div>
                <div>
                  <h3 className={`font-bold text-sm ${mode === 'premium' ? 'text-slate-200' : 'text-gray-900'}`}>You are viewing Demo Data</h3>
@@ -147,11 +212,11 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* 3. DASHBOARD CONTENT (SWITCHES BASED ON MODE) */}
+        {/* 3. DASHBOARD CONTENT */}
         {mode === 'premium' ? (
            <PremiumView data={premiumData} />
         ) : (
-           <StandardView />
+           <StandardView favorites={favorites} toggleFavorite={toggleFavorite} />
         )}
 
       </main>
@@ -161,9 +226,9 @@ export default function DashboardPage() {
 }
 
 // ==========================================
-// STANDARD VIEW COMPONENT (Clean & Simple)
+// STANDARD VIEW COMPONENT
 // ==========================================
-function StandardView() {
+function StandardView({ favorites, toggleFavorite }: { favorites: string[], toggleFavorite: (n:string)=>void }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
@@ -207,6 +272,32 @@ function StandardView() {
 
       {/* Right Column (Sidebar) */}
       <div className="space-y-6">
+
+        {/* New Feature: Favorites Widget */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+           <h3 className="font-bold text-xs text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+             <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> Favorite Tools
+           </h3>
+           <div className="space-y-2">
+             {favorites.length > 0 ? favorites.map((fav) => (
+               <div key={fav} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group">
+                  <span className="text-sm font-medium text-gray-700">{fav}</span>
+                  <button onClick={() => toggleFavorite(fav)} className="text-gray-400 hover:text-red-500">
+                    <Heart className="w-3 h-3 fill-red-500 text-red-500" />
+                  </button>
+               </div>
+             )) : (
+               <p className="text-xs text-gray-400 italic">No favorites yet.</p>
+             )}
+             
+             {/* Example of adding a favorite */}
+             {!favorites.includes('Inventory Planner') && (
+                <button onClick={() => toggleFavorite('Inventory Planner')} className="w-full text-xs text-blue-600 mt-2 border border-dashed border-blue-200 p-2 rounded hover:bg-blue-50">
+                  + Add Inventory Planner
+                </button>
+             )}
+           </div>
+        </div>
         
         {/* Help & Support Widget */}
         <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-5 text-white shadow-lg">
@@ -240,7 +331,7 @@ function StandardView() {
 }
 
 // ==========================================
-// PREMIUM VIEW COMPONENT (Data Dense)
+// PREMIUM VIEW COMPONENT
 // ==========================================
 function PremiumView({ data }: { data: any }) {
   return (
@@ -298,7 +389,7 @@ function PremiumView({ data }: { data: any }) {
                       </div>
                    </div>
                    <div className="text-right">
-                     <p className="text-sm font-bold text-emerald-400">₹{(p.revenue/1000).toFixed(1)}k</p>
+                      <p className="text-sm font-bold text-emerald-400">₹{(p.revenue/1000).toFixed(1)}k</p>
                    </div>
                 </div>
               ))}
