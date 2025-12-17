@@ -52,6 +52,12 @@ export const TOOLS: ToolItem[] = [
   { slug: 'competitor-war-room', label: 'Competitor War Room', desc: 'Track competitor moves',     group: 'operations' },
   { slug: 'launch-simulator',    label: 'Launch Simulator',    desc: 'Plan launch units',          group: 'operations' },
   { slug: 'review-planner',      label: 'Review Planner',      desc: 'Request automation schedule',group: 'operations' },
+  { 
+  slug: 'super-url', 
+  label: 'Super URL Builder', 
+  desc: 'Generate Canonical & 2-Step URLs', 
+  group: 'operations' 
+},
 
   // --- Assets ---
   { slug: 'amazon-image-tool',   label: 'Image Editor',        desc: 'Resize & Rename Images',     group: 'assets' },
