@@ -1,18 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { 
   User, Lock, Bell, CreditCard, ChevronLeft, 
-  Save, Loader2, Mail, Shield, Check, AlertCircle, Camera
+  Save, Loader2, Mail, Shield, AlertCircle, Camera, Upload
 } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden file input
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false); // State for image upload
   const [activeTab, setActiveTab] = useState('profile');
   const [user, setUser] = useState<any>(null);
 
@@ -21,13 +24,14 @@ export default function SettingsPage() {
     fullName: '',
     email: '',
     phone: '',
+    avatarUrl: '', // Added avatarUrl
     currency: 'INR',
     emailAlerts: true,
     marketingEmails: false,
     securityAlerts: true
   });
 
-  // Fetch User Data
+  // 1. FETCH USER DATA
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -36,21 +40,87 @@ export default function SettingsPage() {
         return;
       }
       setUser(user);
-      // Pre-fill email from auth
-      setFormData(prev => ({ ...prev, email: user.email || '' }));
+
+      // PRE-FILL FORM with data from Supabase Metadata
+      setFormData(prev => ({ 
+        ...prev, 
+        email: user.email || '', 
+        fullName: user.user_metadata?.full_name || '', 
+        phone: user.user_metadata?.phone || '',
+        avatarUrl: user.user_metadata?.avatar_url || '', // Load existing image
+      }));
+      
       setLoading(false);
     };
     getUser();
   }, [router]);
 
-  // Simulate Save Action
+  // 2. IMAGE UPLOAD FUNCTION (New Feature)
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!event.target.files || event.target.files.length === 0) return;
+      
+      setUploadingImage(true);
+      const file = event.target.files[0];
+      
+      // Create a unique file path: user_id/timestamp.ext
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // A. Upload to Supabase Storage 'avatars' bucket
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // B. Get the Public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // C. Update Local State immediately
+      setFormData(prev => ({ ...prev, avatarUrl: publicUrl }));
+
+      // D. Update User Metadata automatically so it persists
+      await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl }
+      });
+
+      router.refresh(); // Refresh to update visuals elsewhere
+
+    } catch (error: any) {
+      alert('Error uploading image: ' + error.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // 3. REAL SAVE ACTION (Fixed logic)
   const handleSave = async () => {
     setSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setSaving(false);
-    // You would normally update Supabase here
-    alert('Settings saved successfully!');
+    try {
+      // Update User Metadata in Supabase
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          full_name: formData.fullName,
+          phone: formData.phone,
+          currency: formData.currency 
+          // Add other fields to metadata if needed
+        }
+      });
+
+      if (error) throw error;
+
+      alert('Profile updated successfully!');
+      router.refresh(); 
+
+    } catch (error: any) {
+      alert(`Error updating profile: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">Loading settings...</div>;
@@ -96,20 +166,48 @@ export default function SettingsPage() {
           {activeTab === 'profile' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               
-              {/* Avatar Card */}
+              {/* Avatar Card (UPDATED with Upload Logic) */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center gap-6">
-                <div className="relative group cursor-pointer">
-                  <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-2xl font-bold border-4 border-white shadow-sm">
-                    {user?.email?.charAt(0).toUpperCase()}
+                
+                {/* Clickable Image Area */}
+                <div 
+                  className="relative group cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden border-4 border-white shadow-sm">
+                    {formData.avatarUrl ? (
+                      <img src={formData.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-indigo-600 text-3xl font-bold">{user?.email?.charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
+                  
+                  {/* Overlay */}
                   <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera className="w-6 h-6 text-white" />
+                    {uploadingImage ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <Camera className="w-6 h-6 text-white" />}
                   </div>
+
+                  {/* Hidden Input */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingImage}
+                  />
                 </div>
+
                 <div className="text-center sm:text-left">
                   <h3 className="font-bold text-gray-900">Profile Photo</h3>
                   <p className="text-xs text-gray-500 mb-3">Accepts JPG, PNG or GIF (Max 2MB)</p>
-                  <button className="text-xs font-bold text-blue-600 border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100">Upload New</button>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    className="text-xs font-bold text-blue-600 border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100"
+                  >
+                    {uploadingImage ? 'Uploading...' : 'Upload New'}
+                  </button>
                 </div>
               </div>
 
@@ -161,16 +259,16 @@ export default function SettingsPage() {
                 <h3 className="font-bold text-gray-900 border-b pb-4">Preferences</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                     <label className="text-xs font-semibold text-gray-500 uppercase">Default Currency</label>
-                     <select 
+                      <label className="text-xs font-semibold text-gray-500 uppercase">Default Currency</label>
+                      <select 
                         className="w-full p-2 border border-gray-300 rounded-lg text-sm"
                         value={formData.currency}
                         onChange={(e) => setFormData({...formData, currency: e.target.value})}
-                     >
-                       <option value="INR">INR (₹)</option>
-                       <option value="USD">USD ($)</option>
-                       <option value="EUR">EUR (€)</option>
-                     </select>
+                      >
+                        <option value="INR">INR (₹)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                      </select>
                   </div>
                 </div>
               </div>
