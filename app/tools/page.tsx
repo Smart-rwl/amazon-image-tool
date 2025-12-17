@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { TOOLS, TOOL_GROUPS, ToolGroupId } from '../config/tools.config';
 
-const GROUP_ORDER: ToolGroupId[] = ['calculators', 'finance', 'listing', 'operations'];
+const GROUP_ORDER: ToolGroupId[] = ['calculators', 'finance', 'listing', 'operations', 'assets'];
 
 export default function ToolsIndexPage() {
   const [query, setQuery] = useState('');
@@ -81,7 +81,7 @@ export default function ToolsIndexPage() {
             {filteredTools.map(tool => (
               <Link
                 key={tool.slug}
-                href={`/${tool.slug}`}
+                href={`/tools/${tool.slug}`} // UPDATED: Added /tools/ prefix
                 className="group rounded-xl border border-slate-800 bg-slate-900/70 hover:bg-slate-900 hover:border-indigo-500/70 transition-colors p-4 flex flex-col justify-between shadow-sm hover:shadow-lg hover:shadow-indigo-900/30"
               >
                 <div>
