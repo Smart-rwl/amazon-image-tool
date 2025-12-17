@@ -15,6 +15,7 @@ import {
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
+import { TOOLS } from '../config/tools.config'; // Import tools config to map slugs to names
 
 // --- TYPES & MOCK DATA ---
 type DashboardMode = 'standard' | 'premium';
@@ -25,10 +26,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showDemo, setShowDemo] = useState(true); 
   const [showNewToolAlert, setShowNewToolAlert] = useState(true);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false); // State for User Dropdown
 
-  // Suggestion: Simple Favorites State
-  const [favorites, setFavorites] = useState<string[]>(['Profit Simulator']);
+  // Favorites State (Synced with Navbar via LocalStorage)
+  const [favorites, setFavorites] = useState<string[]>([]);
 
   const router = useRouter();
 
@@ -40,13 +40,28 @@ export default function DashboardPage() {
       setLoading(false);
     };
     getUser();
-  }, [router]);
 
-  // Logout Function
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
+    // Load Favorites on Mount & Listen for Updates
+    const loadFavorites = () => {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('userFavorites');
+        if (saved) {
+          try {
+            setFavorites(JSON.parse(saved));
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+    };
+
+    loadFavorites();
+
+    // Listen for the custom event dispatched by Navbar
+    window.addEventListener('favoritesUpdated', loadFavorites);
+    return () => window.removeEventListener('favoritesUpdated', loadFavorites);
+
+  }, [router]);
 
   // Suggestion: Time-based greeting
   const getGreeting = () => {
@@ -56,12 +71,15 @@ export default function DashboardPage() {
     return 'Good Evening';
   };
 
-  const toggleFavorite = (toolName: string) => {
-    if (favorites.includes(toolName)) {
-      setFavorites(favorites.filter(f => f !== toolName));
-    } else {
-      setFavorites([...favorites, toolName]);
-    }
+  const toggleFavorite = (slug: string) => {
+    const newFavs = favorites.includes(slug)
+      ? favorites.filter(f => f !== slug)
+      : [...favorites, slug];
+    
+    setFavorites(newFavs);
+    localStorage.setItem('userFavorites', JSON.stringify(newFavs));
+    // Notify Navbar to update its hearts
+    window.dispatchEvent(new Event('favoritesUpdated'));
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500 bg-gray-50">Loading Smart Seller...</div>;
@@ -119,39 +137,8 @@ export default function DashboardPage() {
             <Bell className="w-5 h-5" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
           </button>
-
-          {/* User Profile Dropdown (New Feature) */}
-          <div className="relative">
-            <button 
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className={`flex items-center gap-2 p-1 pr-3 rounded-full border transition-all ${mode === 'premium' ? 'border-slate-700 bg-slate-800 text-slate-200' : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'}`}
-            >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs">
-                {user?.email?.charAt(0).toUpperCase()}
-              </div>
-              <ChevronDown className="w-3 h-3" />
-            </button>
-
-            {isUserMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setIsUserMenuOpen(false)}></div>
-                <div className="absolute right-0 top-12 w-56 rounded-xl shadow-2xl border z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-200 bg-white border-gray-100">
-                  <div className="p-4 border-b border-gray-100 bg-gray-50">
-                    <p className="text-xs text-gray-500 font-medium">Signed in as</p>
-                    <p className="text-sm font-bold text-gray-900 truncate">{user?.email}</p>
-                  </div>
-                  <div className="p-2">
-                    <Link href="/settings" className="flex items-center gap-3 p-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg">
-                      <Settings className="w-4 h-4" /> Settings
-                    </Link>
-                    <button onClick={handleLogout} className="w-full flex items-center gap-3 p-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                      <LogOut className="w-4 h-4" /> Sign Out
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          
+          {/* PROFILE REMOVED FROM HERE (Now in Navbar) */}
         </div>
       </div>
 
@@ -162,7 +149,7 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h2 className={`text-2xl font-bold flex items-center gap-2 ${mode === 'premium' ? 'text-white' : 'text-gray-900'}`}>
-              {getGreeting()}, {user?.email?.split('@')[0]}
+              {getGreeting()}, {user?.fullname?.split('@')[0]}
             </h2>
             <p className={`text-sm ${mode === 'premium' ? 'text-slate-400' : 'text-gray-500'}`}>
               Here is what's happening in your store today.
@@ -203,7 +190,7 @@ export default function DashboardPage() {
                  Clear Demo Data
                </button>
                <Link 
-                 href="/calculator" 
+                 href="/tools/calculator" 
                  className="flex-1 md:flex-none flex items-center justify-center gap-2 text-xs font-bold px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
                >
                  <Calculator className="w-3 h-3" /> Add First Product
@@ -229,6 +216,12 @@ export default function DashboardPage() {
 // STANDARD VIEW COMPONENT
 // ==========================================
 function StandardView({ favorites, toggleFavorite }: { favorites: string[], toggleFavorite: (n:string)=>void }) {
+  // Helper to get tool label from slug
+  const getToolLabel = (slug: string) => {
+    const tool = TOOLS.find(t => t.slug === slug);
+    return tool ? tool.label : slug.replace(/-/g, ' '); // Fallback to formatted slug
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
@@ -273,28 +266,28 @@ function StandardView({ favorites, toggleFavorite }: { favorites: string[], togg
       {/* Right Column (Sidebar) */}
       <div className="space-y-6">
 
-        {/* New Feature: Favorites Widget */}
+        {/* Favorites Widget (Dynamic) */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
            <h3 className="font-bold text-xs text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
              <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> Favorite Tools
            </h3>
            <div className="space-y-2">
-             {favorites.length > 0 ? favorites.map((fav) => (
-               <div key={fav} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group">
-                  <span className="text-sm font-medium text-gray-700">{fav}</span>
-                  <button onClick={() => toggleFavorite(fav)} className="text-gray-400 hover:text-red-500">
+             {favorites.length > 0 ? favorites.map((slug) => (
+               <div key={slug} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group hover:bg-gray-100 transition-colors">
+                  <Link href={`/tools/${slug}`} className="flex-1 text-sm font-medium text-gray-700 hover:text-blue-600">
+                    {getToolLabel(slug)}
+                  </Link>
+                  <button onClick={() => toggleFavorite(slug)} className="text-gray-400 hover:text-red-500 p-1">
                     <Heart className="w-3 h-3 fill-red-500 text-red-500" />
                   </button>
                </div>
              )) : (
-               <p className="text-xs text-gray-400 italic">No favorites yet.</p>
-             )}
-             
-             {/* Example of adding a favorite */}
-             {!favorites.includes('Inventory Planner') && (
-                <button onClick={() => toggleFavorite('Inventory Planner')} className="w-full text-xs text-blue-600 mt-2 border border-dashed border-blue-200 p-2 rounded hover:bg-blue-50">
-                  + Add Inventory Planner
-                </button>
+               <div className="text-center py-4">
+                 <p className="text-xs text-gray-400 italic mb-2">No favorites yet.</p>
+                 <Link href="/tools" className="text-xs font-bold text-blue-600 border border-dashed border-blue-200 px-3 py-1.5 rounded hover:bg-blue-50 inline-block">
+                   Browse Tools to Add
+                 </Link>
+               </div>
              )}
            </div>
         </div>
@@ -319,9 +312,9 @@ function StandardView({ favorites, toggleFavorite }: { favorites: string[], togg
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
            <h3 className="font-bold text-xs text-gray-400 uppercase tracking-wider mb-4">Quick Access</h3>
            <div className="space-y-2">
-             <QuickLink href="/profit-calculator" label="Profit Simulator" />
-             <QuickLink href="/ppc-manager" label="PPC Manager" />
-             <QuickLink href="/inventory" label="Inventory Planner" />
+             <QuickLink href="/tools/calculator" label="Profit Simulator" />
+             <QuickLink href="/tools/ppc-calculator" label="PPC Manager" />
+             <QuickLink href="/tools/inventory-planner" label="Inventory Planner" />
            </div>
         </div>
 
