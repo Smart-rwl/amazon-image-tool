@@ -4,19 +4,18 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { TOOLS, TOOL_GROUPS, ToolGroupId } from '../config/tools.config'; // adjust path if needed
+import { TOOLS, TOOL_GROUPS, ToolGroupId } from '../config/tools.config'; 
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  // 1. ADDED 'assets' GROUP HERE
   const toolsByGroup: Record<string, typeof TOOLS> = {
     calculators: TOOLS.filter(t => t.group === 'calculators'),
     finance: TOOLS.filter(t => t.group === 'finance'),
     listing: TOOLS.filter(t => t.group === 'listing'),
     operations: TOOLS.filter(t => t.group === 'operations'),
-    assets: TOOLS.filter(t => t.group === 'assets'), // <--- New Group for Image Tool
+    assets: TOOLS.filter(t => t.group === 'assets'), 
   };
 
   return (
@@ -42,7 +41,13 @@ export default function Navbar() {
             <Dropdown title={TOOL_GROUPS.calculators || 'Calculators'} icon={<CalculatorIcon />}>
               <div className="grid grid-cols-2 w-[380px] gap-1 p-2">
                 {toolsByGroup.calculators.map(tool => (
-                  <MenuLink key={tool.slug} href={`/${tool.slug}`} title={tool.label} desc={tool.desc} active={pathname === `/${tool.slug}`} />
+                  <MenuLink 
+                    key={tool.slug} 
+                    href={`/tools/${tool.slug}`} // UPDATED LINK
+                    title={tool.label} 
+                    desc={tool.desc} 
+                    active={pathname === `/tools/${tool.slug}`} // UPDATED ACTIVE CHECK
+                  />
                 ))}
               </div>
             </Dropdown>
@@ -50,7 +55,13 @@ export default function Navbar() {
             <Dropdown title={TOOL_GROUPS.finance || 'Finance'} icon={<BanknotesIcon />}>
               <div className="grid grid-cols-2 w-[380px] gap-1 p-2">
                 {toolsByGroup.finance.map(tool => (
-                  <MenuLink key={tool.slug} href={`/${tool.slug}`} title={tool.label} desc={tool.desc} active={pathname === `/${tool.slug}`} />
+                  <MenuLink 
+                    key={tool.slug} 
+                    href={`/tools/${tool.slug}`} // UPDATED LINK
+                    title={tool.label} 
+                    desc={tool.desc} 
+                    active={pathname === `/tools/${tool.slug}`} 
+                  />
                 ))}
               </div>
             </Dropdown>
@@ -58,7 +69,13 @@ export default function Navbar() {
             <Dropdown title={TOOL_GROUPS.listing || 'Listing'} icon={<ListIcon />}>
               <div className="grid grid-cols-2 w-[380px] gap-1 p-2">
                 {toolsByGroup.listing.map(tool => (
-                  <MenuLink key={tool.slug} href={`/${tool.slug}`} title={tool.label} desc={tool.desc} active={pathname === `/${tool.slug}`} />
+                  <MenuLink 
+                    key={tool.slug} 
+                    href={`/tools/${tool.slug}`} // UPDATED LINK
+                    title={tool.label} 
+                    desc={tool.desc} 
+                    active={pathname === `/tools/${tool.slug}`} 
+                  />
                 ))}
               </div>
             </Dropdown>
@@ -66,16 +83,26 @@ export default function Navbar() {
             <Dropdown title={TOOL_GROUPS.operations || 'Operations'} icon={<CogIcon />}>
               <div className="w-64 p-2 space-y-1">
                 {toolsByGroup.operations.map(tool => (
-                  <MenuLink key={tool.slug} href={`/${tool.slug}`} title={tool.label} active={pathname === `/${tool.slug}`} />
+                  <MenuLink 
+                    key={tool.slug} 
+                    href={`/tools/${tool.slug}`} // UPDATED LINK
+                    title={tool.label} 
+                    active={pathname === `/tools/${tool.slug}`} 
+                  />
                 ))}
               </div>
             </Dropdown>
 
-            {/* --- 2. ADDED ASSETS DROPDOWN HERE --- */}
             <Dropdown title={TOOL_GROUPS.assets || 'Assets'} icon={<LayersIcon />}>
               <div className="w-64 p-2 space-y-1">
                 {toolsByGroup.assets.map(tool => (
-                   <MenuLink key={tool.slug} href={`/${tool.slug}`} title={tool.label} desc={tool.desc} active={pathname === `/${tool.slug}`} />
+                   <MenuLink 
+                     key={tool.slug} 
+                     href={`/tools/${tool.slug}`} // UPDATED LINK
+                     title={tool.label} 
+                     desc={tool.desc} 
+                     active={pathname === `/tools/${tool.slug}`} 
+                   />
                 ))}
               </div>
             </Dropdown>
@@ -85,7 +112,7 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href="/calculator"
+              href="/tools/calculator" // UPDATED from /calculator to /tools/calculator
               className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors shadow-lg shadow-gray-900/20 ml-2"
             >
               Start
@@ -118,7 +145,11 @@ export default function Navbar() {
           <div className="px-4 pt-2 pb-6 space-y-4">
             <MobileSection title="Calculators">
               {toolsByGroup.calculators.map(tool => (
-                <MobileLink key={tool.slug} href={`/${tool.slug}`} active={pathname === `/${tool.slug}`}>
+                <MobileLink 
+                  key={tool.slug} 
+                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  active={pathname === `/tools/${tool.slug}`}
+                >
                   {tool.label}
                 </MobileLink>
               ))}
@@ -126,7 +157,11 @@ export default function Navbar() {
 
             <MobileSection title="Finance">
               {toolsByGroup.finance.map(tool => (
-                <MobileLink key={tool.slug} href={`/${tool.slug}`} active={pathname === `/${tool.slug}`}>
+                <MobileLink 
+                  key={tool.slug} 
+                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  active={pathname === `/tools/${tool.slug}`}
+                >
                   {tool.label}
                 </MobileLink>
               ))}
@@ -134,7 +169,11 @@ export default function Navbar() {
 
             <MobileSection title="Listing">
               {toolsByGroup.listing.map(tool => (
-                <MobileLink key={tool.slug} href={`/${tool.slug}`} active={pathname === `/${tool.slug}`}>
+                <MobileLink 
+                  key={tool.slug} 
+                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  active={pathname === `/tools/${tool.slug}`}
+                >
                   {tool.label}
                 </MobileLink>
               ))}
@@ -142,16 +181,23 @@ export default function Navbar() {
 
             <MobileSection title="Operations">
               {toolsByGroup.operations.map(tool => (
-                <MobileLink key={tool.slug} href={`/${tool.slug}`} active={pathname === `/${tool.slug}`}>
+                <MobileLink 
+                  key={tool.slug} 
+                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  active={pathname === `/tools/${tool.slug}`}
+                >
                   {tool.label}
                 </MobileLink>
               ))}
             </MobileSection>
 
-            {/* --- 3. ADDED ASSETS MOBILE SECTION HERE --- */}
             <MobileSection title="Assets">
               {toolsByGroup.assets.map(tool => (
-                <MobileLink key={tool.slug} href={`/${tool.slug}`} active={pathname === `/${tool.slug}`}>
+                <MobileLink 
+                  key={tool.slug} 
+                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  active={pathname === `/tools/${tool.slug}`}
+                >
                   {tool.label}
                 </MobileLink>
               ))}
@@ -256,7 +302,6 @@ const BanknotesIcon = () => (
   </svg>
 );
 
-// 4. ADDED ICON FOR ASSETS
 const LayersIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
