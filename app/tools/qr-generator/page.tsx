@@ -16,7 +16,7 @@ import {
 
 export default function SmartQRArchitect() {
   // --- STATE ---
-  const [url, setUrl] = useState('https://yourwebsite.com');
+  const [url, setUrl] = useState('https://smart-seller-tools.vercel.app/');
   const [size, setSize] = useState(300);
   const [fgColor, setFgColor] = useState('#000000');
   const [bgColor, setBgColor] = useState('#ffffff');
