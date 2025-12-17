@@ -3,7 +3,7 @@
 export type ToolGroupId = 'calculators' | 'finance' | 'listing' | 'operations' | 'assets';
 
 export interface ToolItem {
-  slug: string;     // folder name under /app
+  slug: string;     // folder name under /app/tools
   label: string;    // visible name
   desc?: string;    // short description
   group: ToolGroupId;
@@ -19,40 +19,43 @@ export const TOOL_GROUPS: Record<ToolGroupId, string> = {
 
 export const TOOLS: ToolItem[] = [
   // --- Calculators ---
-  { slug: 'calculator',        label: 'Profit & RTO',        desc: 'Net margin & RTO impact',    group: 'calculators' },
-  { slug: 'ppc-calculator',    label: 'PPC / Ads',           desc: 'ACOS, ROAS & breakeven',     group: 'calculators' },
-  { slug: 'volumetric',        label: 'Volumetric Weight',   desc: 'Courier chargeable weight',  group: 'calculators' },
-  { slug: 'odr-calculator',    label: 'Account Health (ODR)',desc: 'Order defect rate monitor',  group: 'calculators' },
-  { slug: 'volume-calculator', label: 'Price vs Volume',     desc: 'Price elasticity sandbox',   group: 'calculators' },
-  { slug: 'influencer-roi',    label: 'Influencer ROI',      desc: 'Campaign performance math',  group: 'calculators' },
+  { slug: 'calculator',         label: 'Profit & RTO',        desc: 'Net margin & RTO impact',    group: 'calculators' },
+  { slug: 'ppc-calculator',     label: 'PPC / Ads',           desc: 'ACOS, ROAS & breakeven',     group: 'calculators' },
+  { slug: 'odr-calculator',     label: 'Account Health (ODR)',desc: 'Order defect rate monitor',  group: 'calculators' },
+  { slug: 'cbm-calculator',     label: 'CBM Calculator',      desc: 'Carton CBM & freight',       group: 'calculators' },
+  { slug: 'ltsf-calculator',    label: 'LTSF Calculator',     desc: 'Long-term storage impact',   group: 'calculators' },
+  { slug: 'returns-calculator', label: 'Returns Calculator',  desc: 'Analyze return costs',       group: 'calculators' },
+  { slug: 'bundle-calculator',  label: 'Bundle Profit',       desc: 'Kit & combo margin',         group: 'calculators' },
 
   // --- Finance ---
-  { slug: 'price-finder',        label: 'Target Price Finder', desc: 'Reverse-calc ideal price', group: 'finance' },
-  { slug: 'price-matcher',       label: 'Price Matcher',       desc: 'Competitor comparison',    group: 'finance' },
-  { slug: 'bundle-calculator',   label: 'Bundle Profit',       desc: 'Kit & combo margin',       group: 'finance' },
-  { slug: 'landed-cost',         label: 'Landed Cost',         desc: 'Import duty & freight',    group: 'finance' },
-  { slug: 'storage-fee-planner', label: 'Storage Fee Planner', desc: 'Monthly warehouse fees',   group: 'finance' },
-  { slug: 'ltsf-calculator',     label: 'LTSF Calculator',     desc: 'Long-term storage impact', group: 'finance' },
+  { slug: 'cashflow-planner',   label: 'Cashflow Planner',    desc: 'Forecast liquidity',         group: 'finance' },
+  { slug: 'landed-cost',        label: 'Landed Cost',         desc: 'Import duty & freight',      group: 'finance' },
+  { slug: 'storage-fee-planner',label: 'Storage Fee Planner', desc: 'Monthly warehouse fees',     group: 'finance' },
+  { slug: 'influencer-roi',     label: 'Influencer ROI',      desc: 'Campaign performance math',  group: 'finance' },
+  { slug: 'ltv-calculator',     label: 'Customer LTV',        desc: 'Lifetime value analysis',    group: 'finance' },
+  { slug: 'deal-planner',       label: 'Deal Planner',        desc: 'Promo impact planning',      group: 'finance' },
 
   // --- Listing Tools ---
-  { slug: 'amazon-image-tool',         label: 'Rename Images faster',   desc: 'Rename .MAIN, PT01.. Easily',     group: 'listing' },
-  { slug: 'keywords',         label: 'Keyword Explorer',   desc: 'Seed & long-tail ideas',     group: 'listing' },
-  { slug: 'keyword-density',  label: 'Keyword Density',    desc: 'Competitor copy coverage',   group: 'listing' },
-  { slug: 'keyword-mixer',    label: 'Keyword Mixer',      desc: 'Phrase / exact mixing',      group: 'listing' },
-  { slug: 'title-optimizer',  label: 'Title Optimizer',    desc: 'SEO-optimized titles',       group: 'listing' },
-  { slug: 'bullet-builder',   label: 'Bullet Builder',     desc: 'Benefits & feature bullets', group: 'listing' },
-  { slug: 'html-formatter',   label: 'HTML Formatter',     desc: 'Clean product descriptions', group: 'listing' },
-  { slug: 'lqs-checker',      label: 'LQS Checker',        desc: 'Basic listing audit',        group: 'listing' },
-  { slug: 'sku-generator',    label: 'SKU Generator',      desc: 'Smart custom SKUs',          group: 'listing' },
-  { slug: 'ab-test',          label: 'A/B Test Calculator',desc: 'Statistical significance',   group: 'listing' },
+  { slug: 'keywords',           label: 'Keyword Explorer',    desc: 'Seed & long-tail ideas',     group: 'listing' },
+  { slug: 'keyword-density',    label: 'Keyword Density',     desc: 'Competitor copy coverage',   group: 'listing' },
+  { slug: 'keyword-mixer',      label: 'Keyword Mixer',       desc: 'Phrase / exact mixing',      group: 'listing' },
+  { slug: 'title-optimizer',    label: 'Title Optimizer',     desc: 'SEO-optimized titles',       group: 'listing' },
+  { slug: 'bullet-builder',     label: 'Bullet Builder',      desc: 'Benefits & feature bullets', group: 'listing' },
+  { slug: 'html-formatter',     label: 'HTML Formatter',      desc: 'Clean product descriptions', group: 'listing' },
+  { slug: 'lqs-checker',        label: 'LQS Checker',         desc: 'Basic listing audit',        group: 'listing' },
+  { slug: 'ab-test',            label: 'A/B Test Calculator', desc: 'Statistical significance',   group: 'listing' },
 
   // --- Operations ---
-  { slug: 'inventory-planner', label: 'Inventory Planner',      desc: 'Replenishment planning', group: 'operations' },
-  { slug: 'deal-planner',      label: 'Deal / Discount Planner',desc: 'Promo impact planning',  group: 'operations' },
-  { slug: 'qr-generator',      label: 'QR Generator',           desc: 'QR codes for inserts',   group: 'operations' },
-  { slug: 'cbm-calculator',    label: 'CBM Calculator',         desc: 'Carton CBM & freight',   group: 'operations' },
-  { slug: 'barcode-generator', label: 'Barcode Generator',      desc: 'FNSKU / UPC labels',     group: 'operations' },
+  { slug: 'inventory-planner',   label: 'Inventory Planner',   desc: 'Replenishment planning',     group: 'operations' },
+  { slug: 'price-finder',        label: 'Target Price Finder', desc: 'Reverse-calc ideal price',   group: 'operations' },
+  { slug: 'price-matcher',       label: 'Price Matcher',       desc: 'Competitor comparison',      group: 'operations' },
+  { slug: 'competitor-war-room', label: 'Competitor War Room', desc: 'Track competitor moves',     group: 'operations' },
+  { slug: 'launch-simulator',    label: 'Launch Simulator',    desc: 'Plan launch units',          group: 'operations' },
+  { slug: 'review-planner',      label: 'Review Planner',      desc: 'Request automation schedule',group: 'operations' },
 
   // --- Assets ---
-  { slug: 'image-compressor',  label: 'Image Compressor',       desc: 'Optimize images online', group: 'assets' },
+  { slug: 'amazon-image-tool',   label: 'Image Editor',        desc: 'Resize & Rename Images',     group: 'assets' },
+  { slug: 'sku-generator',       label: 'SKU Generator',       desc: 'Smart custom SKUs',          group: 'assets' },
+  { slug: 'qr-generator',        label: 'QR Generator',        desc: 'QR codes for inserts',       group: 'assets' },
+  { slug: 'barcode-generator',   label: 'Barcode Generator',   desc: 'FNSKU / UPC labels',         group: 'assets' },
 ];

@@ -43,10 +43,10 @@ export default function Navbar() {
                 {toolsByGroup.calculators.map(tool => (
                   <MenuLink 
                     key={tool.slug} 
-                    href={`/tools/${tool.slug}`} // UPDATED LINK
+                    href={`/tools/${tool.slug}`} 
                     title={tool.label} 
                     desc={tool.desc} 
-                    active={pathname === `/tools/${tool.slug}`} // UPDATED ACTIVE CHECK
+                    active={pathname === `/tools/${tool.slug}`} 
                   />
                 ))}
               </div>
@@ -57,7 +57,7 @@ export default function Navbar() {
                 {toolsByGroup.finance.map(tool => (
                   <MenuLink 
                     key={tool.slug} 
-                    href={`/tools/${tool.slug}`} // UPDATED LINK
+                    href={`/tools/${tool.slug}`} 
                     title={tool.label} 
                     desc={tool.desc} 
                     active={pathname === `/tools/${tool.slug}`} 
@@ -71,7 +71,7 @@ export default function Navbar() {
                 {toolsByGroup.listing.map(tool => (
                   <MenuLink 
                     key={tool.slug} 
-                    href={`/tools/${tool.slug}`} // UPDATED LINK
+                    href={`/tools/${tool.slug}`} 
                     title={tool.label} 
                     desc={tool.desc} 
                     active={pathname === `/tools/${tool.slug}`} 
@@ -85,7 +85,7 @@ export default function Navbar() {
                 {toolsByGroup.operations.map(tool => (
                   <MenuLink 
                     key={tool.slug} 
-                    href={`/tools/${tool.slug}`} // UPDATED LINK
+                    href={`/tools/${tool.slug}`} 
                     title={tool.label} 
                     active={pathname === `/tools/${tool.slug}`} 
                   />
@@ -98,7 +98,7 @@ export default function Navbar() {
                 {toolsByGroup.assets.map(tool => (
                    <MenuLink 
                      key={tool.slug} 
-                     href={`/tools/${tool.slug}`} // UPDATED LINK
+                     href={`/tools/${tool.slug}`} 
                      title={tool.label} 
                      desc={tool.desc} 
                      active={pathname === `/tools/${tool.slug}`} 
@@ -112,7 +112,7 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href="/tools/calculator" // UPDATED from /calculator to /tools/calculator
+              href="/tools/calculator" 
               className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors shadow-lg shadow-gray-900/20 ml-2"
             >
               Start
@@ -147,7 +147,7 @@ export default function Navbar() {
               {toolsByGroup.calculators.map(tool => (
                 <MobileLink 
                   key={tool.slug} 
-                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  href={`/tools/${tool.slug}`} 
                   active={pathname === `/tools/${tool.slug}`}
                 >
                   {tool.label}
@@ -159,7 +159,7 @@ export default function Navbar() {
               {toolsByGroup.finance.map(tool => (
                 <MobileLink 
                   key={tool.slug} 
-                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  href={`/tools/${tool.slug}`} 
                   active={pathname === `/tools/${tool.slug}`}
                 >
                   {tool.label}
@@ -171,7 +171,7 @@ export default function Navbar() {
               {toolsByGroup.listing.map(tool => (
                 <MobileLink 
                   key={tool.slug} 
-                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  href={`/tools/${tool.slug}`} 
                   active={pathname === `/tools/${tool.slug}`}
                 >
                   {tool.label}
@@ -183,7 +183,7 @@ export default function Navbar() {
               {toolsByGroup.operations.map(tool => (
                 <MobileLink 
                   key={tool.slug} 
-                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  href={`/tools/${tool.slug}`} 
                   active={pathname === `/tools/${tool.slug}`}
                 >
                   {tool.label}
@@ -195,7 +195,7 @@ export default function Navbar() {
               {toolsByGroup.assets.map(tool => (
                 <MobileLink 
                   key={tool.slug} 
-                  href={`/tools/${tool.slug}`} // UPDATED LINK
+                  href={`/tools/${tool.slug}`} 
                   active={pathname === `/tools/${tool.slug}`}
                 >
                   {tool.label}
