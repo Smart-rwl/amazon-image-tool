@@ -34,6 +34,12 @@ export const TOOLS: ToolItem[] = [
   { slug: 'influencer-roi',     label: 'Influencer ROI',      desc: 'Campaign performance math',  group: 'finance' },
   { slug: 'ltv-calculator',     label: 'Customer LTV',        desc: 'Lifetime value analysis',    group: 'finance' },
   { slug: 'deal-planner',       label: 'Deal Planner',        desc: 'Promo impact planning',      group: 'finance' },
+  { 
+  slug: 'reimbursement-estimator', 
+  label: 'Refund Estimator', 
+  desc: 'Calculate owed FBA money', 
+  group: 'finance' 
+},
 
   // --- Listing Tools ---
   { slug: 'keywords',           label: 'Keyword Explorer',    desc: 'Seed & long-tail ideas',     group: 'listing' },
