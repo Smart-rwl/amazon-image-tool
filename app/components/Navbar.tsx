@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase'; // Ensure this path is correct
+import { supabase } from '@/lib/supabase'; 
 import { TOOLS, TOOL_GROUPS } from '../config/tools.config'; 
 import { 
   Calculator, Banknote, FileText, Settings, Image as ImageIcon, 
-  Menu, X, ChevronDown, Heart, User, LogOut, Settings as SettingsIcon 
+  Menu, X, ChevronDown, Heart, LogOut, Settings as SettingsIcon 
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -19,16 +19,13 @@ export default function Navbar() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
 
-  // 1. Fetch User & Favorites on Mount
   useEffect(() => {
-    // Get User
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
     };
     getUser();
 
-    // Get Favorites
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('userFavorites');
       if (saved) {
@@ -41,7 +38,6 @@ export default function Navbar() {
     }
   }, []);
 
-  // 2. Toggle Favorite Function
   const toggleFavorite = (slug: string) => {
     const newFavs = favorites.includes(slug)
       ? favorites.filter(s => s !== slug)
@@ -52,14 +48,12 @@ export default function Navbar() {
     window.dispatchEvent(new Event('favoritesUpdated'));
   };
 
-  // 3. Logout Function
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
     router.push('/login');
   };
 
-  // Helper to filter tools
   const getTools = (group: string) => TOOLS.filter(t => t.group === group);
 
   return (
@@ -67,15 +61,26 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           
-          {/* LOGO */}
+          {/* --- LOGO WITH GLITCH EFFECT --- */}
           <div className="flex items-center">
-            <Link href="/" className="flex-shrink-0 flex items-center gap-2 group">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30">
+            <Link href="/" className="flex-shrink-0 flex items-center gap-3 group">
+              {/* Icon */}
+              <div className="w-9 h-9 bg-gray-900 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-gray-500/20">
                 S
               </div>
-              <span className="font-bold text-xl text-gray-900 tracking-tight">
-                Smart Seller
-              </span>
+              
+              {/* Glitch Text */}
+              <div className="flex flex-col">
+                <span 
+                  className="glitch-logo text-xl tracking-tight leading-none" 
+                  data-text="Smart Seller"
+                >
+                  Smart Seller
+                </span>
+                <span className="text-[10px] text-gray-500 font-medium tracking-widest uppercase ml-0.5">
+                  Tools Suite
+                </span>
+              </div>
             </Link>
           </div>
 
@@ -142,7 +147,7 @@ export default function Navbar() {
               </div>
             </Dropdown>
 
-            {/* --- REPLACED "START" BUTTON WITH PROFILE DROPDOWN --- */}
+            {/* PROFILE DROPDOWN */}
             <div className="ml-4 pl-4 border-l border-gray-200 relative">
               {user ? (
                 <>
@@ -156,11 +161,10 @@ export default function Navbar() {
                     <ChevronDown className={`w-3 h-3 text-gray-500 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
-                  {/* Profile Dropdown */}
                   {isUserMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setIsUserMenuOpen(false)}></div>
-                      <div className="absolute right-0 top-12 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      <div className="absolute right-0 top-12 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="p-4 border-b border-gray-50 bg-gray-50/50">
                           <p className="text-xs text-gray-500 font-medium">Signed in as</p>
                           <p className="text-sm font-bold text-gray-900 truncate">{user.email}</p>
@@ -209,14 +213,12 @@ export default function Navbar() {
         <div className="lg:hidden bg-white border-t border-gray-100 max-h-[85vh] overflow-y-auto shadow-xl">
           <div className="px-4 pt-4 pb-8 space-y-6">
             
-            {/* Mobile Tool Sections */}
             <MobileSection title={TOOL_GROUPS.calculators} tools={getTools('calculators')} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />
             <MobileSection title={TOOL_GROUPS.finance} tools={getTools('finance')} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />
             <MobileSection title={TOOL_GROUPS.listing} tools={getTools('listing')} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />
             <MobileSection title={TOOL_GROUPS.operations} tools={getTools('operations')} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />
             <MobileSection title={TOOL_GROUPS.assets} tools={getTools('assets')} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />
 
-            {/* Mobile Profile Section */}
             <div className="border-t pt-4 mt-4">
               {user ? (
                 <div className="space-y-3">
@@ -250,7 +252,7 @@ export default function Navbar() {
   );
 }
 
-/* --- SUB COMPONENTS --- */
+// --- SUB COMPONENTS ---
 
 function Dropdown({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -302,7 +304,7 @@ function MenuLink({ tool, currentPath, isFavorite, onToggleFav }: { tool: any; c
           className={`w-3.5 h-3.5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500 opacity-100' : 'text-gray-300 hover:text-red-400'}`} 
         />
       </button>
-      {/* Ensure filled hearts are always visible even when not hovering */}
+      {/* Ensure filled hearts are always visible */}
       {isFavorite && (
          <div className="absolute top-3 right-3 pointer-events-none group-hover/item:hidden">
             <Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" />

@@ -44,3 +44,41 @@ body {
 }
 
 /* ... keep the rest of your css below ... */
+/* Glitch Logo Effect */
+@keyframes glitch-anim {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  to { transform: translate(0); }
+}
+
+.glitch-logo {
+  position: relative;
+  font-weight: 800; /* Extra bold */
+  color: #111827;   /* Dark gray */
+  z-index: 1;
+}
+
+.glitch-logo::before,
+.glitch-logo::after {
+  display: block;
+  content: attr(data-text); /* Important: grabs the text automatically */
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0.8;
+}
+
+.glitch-logo::before {
+  animation: glitch-anim 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+  color: #06b6d4; /* Cyan/Blue */
+  z-index: -1;
+}
+
+.glitch-logo::after {
+  animation: glitch-anim 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) reverse both infinite;
+  color: #ec4899; /* Pink/Magenta */
+  z-index: -2;
+}
