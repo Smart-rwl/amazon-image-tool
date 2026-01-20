@@ -4,7 +4,13 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { TOOLS, TOOL_GROUPS, ToolGroupId } from '../config/tools.config';
 
-const GROUP_ORDER: ToolGroupId[] = ['calculators', 'finance', 'listing', 'operations', 'assets'];
+const GROUP_ORDER: ToolGroupId[] = [
+  'calculators',
+  'finance',
+  'listing',
+  'operations',
+  'assets',
+];
 
 export default function ToolsIndexPage() {
   const [query, setQuery] = useState('');
@@ -12,20 +18,30 @@ export default function ToolsIndexPage() {
 
   const filteredTools = useMemo(() => {
     const q = query.toLowerCase();
-    return TOOLS.filter(tool => {
-      const matchesGroup = activeGroup === 'all' || tool.group === activeGroup;
-      const matchesSearch =
-        !q ||
-        tool.label.toLowerCase().includes(q) ||
-        tool.slug.toLowerCase().includes(q) ||
-        (tool.desc && tool.desc.toLowerCase().includes(q));
-      return matchesGroup && matchesSearch;
-    });
+
+    return TOOLS
+      .filter(tool => {
+        const matchesGroup = activeGroup === 'all' || tool.group === activeGroup;
+        const matchesSearch =
+          !q ||
+          tool.label.toLowerCase().includes(q) ||
+          tool.slug.toLowerCase().includes(q) ||
+          (tool.desc && tool.desc.toLowerCase().includes(q));
+        return matchesGroup && matchesSearch;
+      })
+      // ✅ ADDITIVE: priority-aware sort (lower = higher priority)
+      .sort((a, b) => {
+        const pa = a.priority ?? 999;
+        const pb = b.priority ?? 999;
+        if (pa !== pb) return pa - pb;
+        return a.label.localeCompare(b.label);
+      });
   }, [query, activeGroup]);
 
   return (
     <div className="pt-24 pb-12 px-4 md:px-8 bg-slate-950 text-slate-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
@@ -71,17 +87,25 @@ export default function ToolsIndexPage() {
           ))}
         </div>
 
-        {/* Tool grid */}
+        {/* Tool grid / Empty state */}
         {filteredTools.length === 0 ? (
-          <div className="mt-10 text-center text-slate-500 text-sm">
-            No tools match your search. Try a different keyword.
+          <div className="mt-12 text-center text-slate-500 text-sm">
+            {activeGroup === 'all' ? (
+              <>No tools match your search. Try a different keyword.</>
+            ) : (
+              <>
+                No tools found in <strong>{TOOL_GROUPS[activeGroup]}</strong>.
+                <br />
+                Try another category or clear filters.
+              </>
+            )}
           </div>
         ) : (
           <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
             {filteredTools.map(tool => (
               <Link
                 key={tool.slug}
-                href={`/tools/${tool.slug}`} // UPDATED: Added /tools/ prefix
+                href={`/tools/${tool.slug}`}
                 className="group rounded-xl border border-slate-800 bg-slate-900/70 hover:bg-slate-900 hover:border-indigo-500/70 transition-colors p-4 flex flex-col justify-between shadow-sm hover:shadow-lg hover:shadow-indigo-900/30"
               >
                 <div>
@@ -89,10 +113,21 @@ export default function ToolsIndexPage() {
                     <h2 className="font-semibold text-sm md:text-base text-slate-50 group-hover:text-white">
                       {tool.label}
                     </h2>
-                    <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">
-                      {TOOL_GROUPS[tool.group]}
-                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      {/* ✅ ADDITIVE: PRO badge */}
+                      {tool.isPro && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          PRO
+                        </span>
+                      )}
+
+                      <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">
+                        {TOOL_GROUPS[tool.group]}
+                      </span>
+                    </div>
                   </div>
+
                   {tool.desc && (
                     <p className="text-xs md:text-sm text-slate-400 line-clamp-2">
                       {tool.desc}
@@ -123,6 +158,7 @@ export default function ToolsIndexPage() {
             ))}
           </div>
         )}
+
       </div>
     </div>
   );
