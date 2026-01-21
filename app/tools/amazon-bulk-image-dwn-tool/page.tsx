@@ -17,7 +17,7 @@ export default function AmazonImageTool() {
     setLoading(true);
     setProgress(10);
 
-    const res = await fetch('/api/amazon-image-tool', {
+    const res = await fetch('/api/amazon-bulk-image-dwn-tool', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rawData }),
