@@ -18,50 +18,44 @@ export async function POST(req: Request) {
     let totalImages = 0;
 
     for (const line of lines) {
-      const parts = line.trim().split(/\s+/);
-      const asin = parts[0]?.trim();
-      const urls = parts.slice(1);
+  if (!line.trim()) continue;
 
-      if (!asin) continue;
+  // ✅ Skip CSV header row
+  if (line.toLowerCase().startsWith('asin')) continue;
 
-      const folder = zip.folder(asin);
-      if (!folder) continue;
+  // ✅ Normalize CSV / TSV / pasted text
+  const cleanLine = line.replace(/,/g, ' ').trim();
 
-      for (let i = 0; i < urls.length; i++) {
-        if (totalImages >= MAX_IMAGES_FREE) {
-          errors.push({
-            asin,
-            url: '',
-            reason: 'Free limit reached',
-          });
-          break;
-        }
+  const parts = cleanLine.split(/\s+/);
+  const asin = parts[0];
+  const urls = parts.slice(1);
 
-        const url = urls[i]?.trim();
-        if (!url) continue;
+  if (!asin || urls.length === 0) continue;
 
-        try {
-          const res = await fetch(url);
+  const folder = zip.folder(asin);
+  if (!folder) continue;
 
-          if (!res.ok) {
-            errors.push({ asin, url, reason: 'Fetch failed' });
-            continue;
-          }
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    if (!url.startsWith('http')) continue;
 
-          const buffer = await res.arrayBuffer();
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
 
-          const filename =
-            i === 0
-              ? `${asin}.MAIN.jpg`
-              : `${asin}.PT${String(i).padStart(2, '0')}.jpg`;
+      const buffer = await res.arrayBuffer();
 
-          folder.file(filename, new Uint8Array(buffer));
-          totalImages++;
-        } catch {
-          errors.push({ asin, url, reason: 'Download error' });
-        }
-      }
+      const filename =
+        i === 0
+          ? `${asin}.MAIN.jpg`
+          : `${asin}.PT${String(i).padStart(2, '0')}.jpg`;
+
+      folder.file(filename, new Uint8Array(buffer));
+    } catch {
+      continue;
     }
+  }
+}
 
     // 📄 Add error report (if any)
     if (errors.length) {
