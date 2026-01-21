@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   Folder,
   CheckCircle,
-  Trash2
+  Trash2,
 } from 'lucide-react';
 
 /* ---------- TYPES ---------- */
@@ -17,6 +17,11 @@ type HistoryItem = {
   asinCount: number;
   imageCount: number;
   time: number;
+};
+
+type AsinPreviewItem = {
+  asin: string;
+  images: number;
 };
 
 export default function AmazonImageTool() {
@@ -29,7 +34,7 @@ export default function AmazonImageTool() {
   const [dragOver, setDragOver] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  /* ---------- LOAD HISTORY ---------- */
+  /* ---------- LOAD HISTORY (Local first, Supabase later) ---------- */
   useEffect(() => {
     const saved = localStorage.getItem('amazon-image-history');
     if (saved) setHistory(JSON.parse(saved));
@@ -41,25 +46,34 @@ export default function AmazonImageTool() {
     setRawData(text.replace(/,/g, '\t'));
   };
 
-  /* ---------- PARSE (UX ONLY) ---------- */
+  /* ---------- PARSE & PREVIEW ---------- */
   const parsed = useMemo(() => {
     const lines = rawData.trim().split('\n').filter(Boolean);
 
     let asinCount = 0;
     let imageCount = 0;
     let invalid = 0;
+    const asinMap: Record<string, number> = {};
 
     lines.forEach(line => {
       const parts = line.trim().split(/\s+/);
-      if (!parts[0] || parts.length < 2) {
+      const asin = parts[0];
+      const images = parts.slice(1).filter(u => u.startsWith('http'));
+
+      if (!asin || images.length === 0) {
         invalid++;
-        return;
       }
+
       asinCount++;
-      imageCount += parts.slice(1).filter(u => u.startsWith('http')).length;
+      asinMap[asin] = images.length;
+      imageCount += images.length;
     });
 
-    return { asinCount, imageCount, invalid };
+    const asinPreview: AsinPreviewItem[] = Object.entries(asinMap).map(
+      ([asin, images]) => ({ asin, images })
+    );
+
+    return { asinCount, imageCount, invalid, asinPreview };
   }, [rawData]);
 
   const isBlocked =
@@ -100,19 +114,19 @@ export default function AmazonImageTool() {
     setHistory(updated);
     localStorage.setItem('amazon-image-history', JSON.stringify(updated));
 
+    /* 🔜 SUPABASE (OPTIONAL – SAFE TO ADD LATER)
+       await supabase.from('image_download_history').insert({
+         asin_count: parsed.asinCount,
+         image_count: parsed.imageCount,
+       });
+    */
+
     setSuccess(true);
     setTimeout(() => {
       setLoading(false);
       setProgress(0);
       setSuccess(false);
     }, 900);
-  };
-
-  const insertExample = () => {
-    setRawData(
-`B0TEST001 https://image1.jpg https://image2.jpg
-B0TEST002 https://image1.jpg https://image2.jpg https://image3.jpg`
-    );
   };
 
   return (
@@ -123,31 +137,13 @@ B0TEST002 https://image1.jpg https://image2.jpg https://image3.jpg`
         <div className="text-center">
           <h1 className="text-3xl font-bold">Amazon Bulk Image Downloader</h1>
           <p className="text-gray-500 mt-2 max-w-2xl mx-auto">
-            Download Amazon product images in bulk with ASIN-wise renaming and clean ZIP output.
+            Built for sellers who manage large catalogs.
+            Download, rename, and organize Amazon images in minutes.
           </p>
         </div>
 
         {/* MAIN CARD */}
         <div className="bg-white rounded-2xl border shadow-sm p-6 space-y-6">
-
-          {/* INPUT HEADER */}
-          <div className="flex justify-between items-start gap-4">
-            <div className="flex gap-3">
-              <FileText className="w-5 h-5 text-indigo-600 mt-1" />
-              <div>
-                <h3 className="font-semibold">Input product data</h3>
-                <p className="text-sm text-gray-500">
-                  Paste ASIN-wise image links or upload an Amazon CSV export
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={insertExample}
-              className="text-xs font-semibold text-indigo-600 hover:underline"
-            >
-              Show example
-            </button>
-          </div>
 
           {/* CSV UPLOAD */}
           <div
@@ -164,17 +160,19 @@ B0TEST002 https://image1.jpg https://image2.jpg https://image3.jpg`
                 handleCSV(e.dataTransfer.files[0]);
               }
             }}
-            className={`border border-dashed rounded-xl p-4 flex justify-between items-center cursor-pointer transition ${
+            className={`border border-dashed rounded-xl p-4 cursor-pointer transition ${
               dragOver
                 ? 'border-indigo-500 bg-indigo-50'
                 : 'hover:border-indigo-400'
             }`}
           >
-            <span className="text-sm font-medium flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Upload or drag CSV
-            </span>
-            <span className="text-xs text-gray-400">.csv</span>
+            <div className="flex justify-between items-center">
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <Upload className="w-4 h-4" />
+                Upload or drag CSV file
+              </span>
+              <span className="text-xs text-gray-400">.csv</span>
+            </div>
 
             <input
               ref={fileInputRef}
@@ -206,33 +204,25 @@ B0TEST002 https://image1.jpg https://image2.jpg https://image3.jpg`
             <Summary label="Issues" value={parsed.invalid} warn />
           </div>
 
-          {parsed.invalid > 0 && (
-            <div className="flex gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-              <AlertTriangle className="w-4 h-4 mt-0.5" />
-              Some rows look invalid. Download will continue, but review input.
-            </div>
-          )}
-
-          {/* ZIP STRUCTURE */}
-          <div className="bg-gray-50 rounded-lg p-4 text-sm">
-            <div className="flex items-center gap-2 font-medium mb-2">
-              <Folder className="w-4 h-4" /> ZIP structure preview
-            </div>
-            <pre className="text-xs text-gray-600">
-{`ASIN/
- ├─ ASIN.MAIN.jpg
- ├─ ASIN.PT01.jpg
- ├─ ASIN.PT02.jpg`}
-            </pre>
-          </div>
-
-          {/* PROGRESS */}
-          {loading && (
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-indigo-600 h-2 rounded-full transition-all"
-                style={{ width: `${progress}%` }}
-              />
+          {/* PER-ASIN PREVIEW */}
+          {parsed.asinPreview.length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-4 text-sm">
+              <p className="font-medium mb-2">Detected ASINs</p>
+              <div className="max-h-40 overflow-auto space-y-1">
+                {parsed.asinPreview.slice(0, 20).map(item => (
+                  <div
+                    key={item.asin}
+                    className={`flex justify-between px-2 py-1 rounded ${
+                      item.images === 0
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-white'
+                    }`}
+                  >
+                    <span className="font-mono">{item.asin}</span>
+                    <span>{item.images} images</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -249,13 +239,6 @@ B0TEST002 https://image1.jpg https://image2.jpg https://image3.jpg`
               ? 'Processing Images…'
               : 'Download Images'}
           </button>
-
-          {/* TRUST */}
-          <div className="text-xs text-gray-400 text-center space-x-3">
-            <span>✔ No login required</span>
-            <span>✔ No data stored</span>
-            <span>✔ Secure processing</span>
-          </div>
         </div>
 
         {/* HISTORY */}
@@ -301,7 +284,15 @@ B0TEST002 https://image1.jpg https://image2.jpg https://image3.jpg`
 }
 
 /* ---------- SMALL ---------- */
-function Summary({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
+function Summary({
+  label,
+  value,
+  warn,
+}: {
+  label: string;
+  value: number;
+  warn?: boolean;
+}) {
   return (
     <div className={`rounded-lg border p-3 ${warn ? 'border-yellow-300 bg-yellow-50' : ''}`}>
       <p className="text-xs text-gray-500">{label}</p>
