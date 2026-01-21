@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     let totalImages = 0;
 
     for (const line of lines) {
-      const parts = line.split('\t');
+      const parts = line.trim().split(/\s+/);
       const asin = parts[0]?.trim();
       const urls = parts.slice(1);
 
