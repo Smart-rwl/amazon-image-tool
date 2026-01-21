@@ -34,7 +34,7 @@ export default function AmazonImageTool() {
   const [dragOver, setDragOver] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  /* ---------- LOAD HISTORY (Local first, Supabase later) ---------- */
+  /* ---------- LOAD HISTORY ---------- */
   useEffect(() => {
     const saved = localStorage.getItem('amazon-image-history');
     if (saved) setHistory(JSON.parse(saved));
@@ -46,7 +46,7 @@ export default function AmazonImageTool() {
     setRawData(text.replace(/,/g, '\t'));
   };
 
-  /* ---------- PARSE & PREVIEW ---------- */
+  /* ---------- PARSE ---------- */
   const parsed = useMemo(() => {
     const lines = rawData.trim().split('\n').filter(Boolean);
 
@@ -60,9 +60,7 @@ export default function AmazonImageTool() {
       const asin = parts[0];
       const images = parts.slice(1).filter(u => u.startsWith('http'));
 
-      if (!asin || images.length === 0) {
-        invalid++;
-      }
+      if (!asin || images.length === 0) invalid++;
 
       asinCount++;
       asinMap[asin] = images.length;
@@ -114,13 +112,6 @@ export default function AmazonImageTool() {
     setHistory(updated);
     localStorage.setItem('amazon-image-history', JSON.stringify(updated));
 
-    /* 🔜 SUPABASE (OPTIONAL – SAFE TO ADD LATER)
-       await supabase.from('image_download_history').insert({
-         asin_count: parsed.asinCount,
-         image_count: parsed.imageCount,
-       });
-    */
-
     setSuccess(true);
     setTimeout(() => {
       setLoading(false);
@@ -131,18 +122,66 @@ export default function AmazonImageTool() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-10">
 
         {/* HEADER */}
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold">Amazon Bulk Image Downloader</h1>
-          <p className="text-gray-500 mt-2 max-w-2xl mx-auto">
-            Built for sellers who manage large catalogs.
-            Download, rename, and organize Amazon images in minutes.
+          <p className="text-gray-500 max-w-2xl mx-auto">
+            Bulk download Amazon product images with correct ASIN-wise renaming
+            and clean ZIP output.
           </p>
         </div>
 
-        {/* MAIN CARD */}
+        {/* WHAT / WHY / HOW */}
+        <div className="bg-white rounded-2xl border shadow-sm p-6 space-y-6 text-sm">
+
+          <div>
+            <h3 className="font-semibold mb-1">What does this tool do?</h3>
+            <p className="text-gray-600">
+              This tool downloads Amazon product images in bulk and automatically
+              renames them ASIN-wise (MAIN, PT01, PT02…), then packages everything
+              into a single ZIP file.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-1">Why should sellers use this?</h3>
+            <ul className="list-disc pl-5 text-gray-600 space-y-1">
+              <li>Save hours of manual image downloading</li>
+              <li>Avoid incorrect file naming mistakes</li>
+              <li>Perfect for catalog uploads, relaunches, and audits</li>
+              <li>No extensions, scripts, or technical setup required</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-1">How to use this tool</h3>
+            <ol className="list-decimal pl-5 text-gray-600 space-y-1">
+              <li>Prepare ASIN-wise image URLs (CSV or pasted text)</li>
+              <li>Upload the CSV or paste data in the box</li>
+              <li>Review ASIN and image count preview</li>
+              <li>Click “Download Images” to get the ZIP</li>
+            </ol>
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-2">Example CSV format</h3>
+            <div className="bg-gray-50 rounded-lg p-3 overflow-auto">
+              <pre className="text-xs text-gray-700">
+{`ASIN	Image Link 1	Image Link 2	Image Link 3	Image Link 4	Image Link 5	Image Link 6	Image Link 7
+B0G5LXB7H3	https://image1.jpg	https://image2.jpg	https://image3.jpg
+B0G58NL8BJ	https://image1.jpg	https://image2.jpg`}
+              </pre>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Tip: CSV commas are automatically converted to tabs on upload.
+            </p>
+          </div>
+
+        </div>
+
+        {/* MAIN TOOL CARD (UNCHANGED LOGIC) */}
         <div className="bg-white rounded-2xl border shadow-sm p-6 space-y-6">
 
           {/* CSV UPLOAD */}
@@ -197,35 +236,6 @@ export default function AmazonImageTool() {
             className="w-full rounded-xl border p-5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
           />
 
-          {/* SUMMARY */}
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <Summary label="ASINs" value={parsed.asinCount} />
-            <Summary label="Images" value={parsed.imageCount} />
-            <Summary label="Issues" value={parsed.invalid} warn />
-          </div>
-
-          {/* PER-ASIN PREVIEW */}
-          {parsed.asinPreview.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-4 text-sm">
-              <p className="font-medium mb-2">Detected ASINs</p>
-              <div className="max-h-40 overflow-auto space-y-1">
-                {parsed.asinPreview.slice(0, 20).map(item => (
-                  <div
-                    key={item.asin}
-                    className={`flex justify-between px-2 py-1 rounded ${
-                      item.images === 0
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-white'
-                    }`}
-                  >
-                    <span className="font-mono">{item.asin}</span>
-                    <span>{item.images} images</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* CTA */}
           <button
             disabled={isBlocked}
@@ -240,40 +250,6 @@ export default function AmazonImageTool() {
               : 'Download Images'}
           </button>
         </div>
-
-        {/* HISTORY */}
-        {history.length > 0 && (
-          <div className="bg-white rounded-2xl border shadow-sm p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold">Download history</h3>
-              <button
-                onClick={() => {
-                  setHistory([]);
-                  localStorage.removeItem('amazon-image-history');
-                }}
-                className="text-xs text-red-500 flex items-center gap-1"
-              >
-                <Trash2 className="w-3 h-3" /> Clear
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {history.map(h => (
-                <div key={h.id} className="flex justify-between text-sm border rounded-lg p-3">
-                  <div>
-                    <p className="font-medium">
-                      {h.asinCount} ASINs · {h.imageCount} images
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(h.time).toLocaleString()}
-                    </p>
-                  </div>
-                  <CheckCircle className="w-4 h-4 text-green-600 mt-1" />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         <p className="text-center text-xs text-gray-400">
           Free version supports up to 100 images per download.
