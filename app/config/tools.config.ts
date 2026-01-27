@@ -66,7 +66,12 @@ export const TOOLS: ToolItem[] = [
   { slug: 'ltsf-calculator', label: 'LTSF Calculator', desc: 'Long-term storage impact', group: 'calculators' },
   { slug: 'returns-calculator', label: 'Returns Calculator', desc: 'Analyze return costs', group: 'calculators' },
   { slug: 'bundle-calculator', label: 'Bundle Profit', desc: 'Kit & combo margin', group: 'calculators' },
-
+{ 
+  slug: 'amazon-fee-calculator', 
+  label: 'Amazon Profit Calc', 
+  desc: 'Referral, Closing & FBA Fee breakdown', 
+  group: 'calculators' 
+},
   // --- Finance ---
   {
     slug: 'cashflow-planner',
